@@ -57,7 +57,7 @@ reqmap = {}
 
 async def read_requests(loop, client_socket, dlv_socket):
     async for j in BufferedSocket(client_socket).jsons():
-        print('JSON from client: {}'.format(j))
+        print('--> {}'.format(json.dumps(j)))
         if 'id' in j:
             reqmap[j['id']] = j
         await loop.sock_sendall(dlv_socket, bytes(json.dumps(j) + '\n', 'ascii'))
@@ -65,7 +65,7 @@ async def read_requests(loop, client_socket, dlv_socket):
 
 async def read_responses(loop, dlv_socket, client_socket):
     async for j in BufferedSocket(dlv_socket).jsons():
-        print('JSON from dlv: {}'.format(j))
+        print('<-- {}'.format(json.dumps(j)))
         if 'id' in j:
             del reqmap[j['id']]
         await loop.sock_sendall(client_socket, bytes(json.dumps(j) + '\n', 'ascii'))
