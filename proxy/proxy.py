@@ -44,6 +44,7 @@ async def run_proxy_server(loop):
             dlv_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_IP)
             dlv_socket.setblocking(False)
             await loop.sock_connect(dlv_socket, dlv_server_addr)
+            print('Connected to DLV for client {}'.format(addr))
         except:
             client_socket.close()
             raise
