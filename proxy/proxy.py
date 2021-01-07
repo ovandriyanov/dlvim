@@ -16,20 +16,6 @@ class BufferedSocket:
         self.json_parser = JsonParser()
 
 
-#    async def lines(self):
-#        while True:
-#            for line in self.buf.splitlines(keepends=True):
-#                if line[-1] == ord('\n'):
-#                    yield line
-#                    self.buf = self.buf[len(line):]
-#                else:
-#                    break
-#            d = await asyncio.get_event_loop().sock_recv(self.sock, 4096)
-#            if not d:
-#                return
-#            self.buf += d
-
-
     async def jsons(self):
         while True:
             data_chunk = await asyncio.get_event_loop().sock_recv(self.sock, 4096)
