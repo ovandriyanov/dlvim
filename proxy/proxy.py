@@ -39,9 +39,12 @@ async def run_proxy_server(loop):
         client_socket, addr = await loop.sock_accept(proxy_server)
         print('Accepted client {}'.format(addr))
 
-        #dlv_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_IP)
-        dlv_socket = None
-        #await loop.sock_connect(dlv_socket, dlv_server_addr)
+        try:
+            dlv_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_IP)
+            await loop.sock_connect(dlv_socket, dlv_server_addr)
+        except:
+            client_socket.close()
+            raise
         loop.create_task(read_requests(loop, client_socket, dlv_socket))
 
 
