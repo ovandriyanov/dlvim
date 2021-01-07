@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
+from json_parser import JsonParser
 import asyncio
+import json
 import jsonstreamer
 import socket
-from json_parser import JsonParser
 
 proxy_listen_addr = ('127.0.0.1', 7777)
 dlv_server_addr = ('127.0.0.1', 8888)
