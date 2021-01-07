@@ -49,13 +49,19 @@ async def run_proxy_server(loop):
             client_socket.close()
             raise
         loop.create_task(read_requests(loop, client_socket, dlv_socket))
+        loop.create_task(read_responses(loop, dlv_socket, client_socket))
 
 
 async def read_requests(loop, client_socket, dlv_socket):
     async for j in BufferedSocket(client_socket).jsons():
-        print('JSON: {}'.format(j))
+        print('JSON from client: {}'.format(j))
         await loop.sock_sendall(dlv_socket, bytes(json.dumps(j) + '\n', 'ascii'))
 
+
+async def read_responses(loop, dlv_socket, client_socket):
+    async for j in BufferedSocket(dlv_socket).jsons():
+        print('JSON from dlv: {}'.format(j))
+        await loop.sock_sendall(client_socket, bytes(json.dumps(j) + '\n', 'ascii'))
 
 loop = asyncio.get_event_loop()
 loop.create_task(run_proxy_server(loop))
