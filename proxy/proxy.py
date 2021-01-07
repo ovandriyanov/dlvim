@@ -70,6 +70,7 @@ async def read_responses(loop, dlv_socket, client_socket):
             del reqmap[j['id']]
         await loop.sock_sendall(client_socket, bytes(json.dumps(j) + '\n', 'ascii'))
 
+
 loop = asyncio.get_event_loop()
 loop.create_task(run_proxy_server(loop))
 loop.run_forever()
