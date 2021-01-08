@@ -70,4 +70,12 @@ if __name__ == '__main__':
     objs = p.parse(data[3:])
     assert objs == canonical
 
+    p = JsonParser()
+    data = '[{"a": 1}, {"b": 2}] [1,2,"kek"] {"x": "y"}'
+    objs = p.parse(data)
+    assert len(objs) == 3
+    assert objs[0] == [{"a": 1}, {"b": 2}]
+    assert objs[1] == [1, 2, "kek"]
+    assert objs[2] == {"x": "y"}
+
     print('OK')
