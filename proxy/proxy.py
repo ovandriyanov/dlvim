@@ -6,10 +6,15 @@ import asyncio
 import json
 import jsonstreamer
 import socket
+import sys
 
 
 proxy_listen_addr = ('127.0.0.1', 7777)
 dlv_server_addr = ('127.0.0.1', 8888)
+
+
+def log(msg):
+    print(msg, file=sys.stderr)
 
 
 class BufferedSocket:
@@ -33,18 +38,18 @@ async def run_proxy_server(loop):
     proxy_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     proxy_server.bind(proxy_listen_addr)
     proxy_server.listen(100)
-    print('Listening at {}'.format(proxy_listen_addr))
+    log('Listening at {}'.format(proxy_listen_addr))
 
     while True:
-        print('Waiting for client...')
+        log('Waiting for client...')
         client_socket, addr = await loop.sock_accept(proxy_server)
-        print('Accepted client {}'.format(addr))
+        log('Accepted client {}'.format(addr))
 
         try:
             dlv_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_IP)
             dlv_socket.setblocking(False)
             await loop.sock_connect(dlv_socket, dlv_server_addr)
-            print('Connected to DLV for client {}'.format(addr))
+            log('Connected to DLV for client {}'.format(addr))
             dlv_conn = DlvConnection(loop, dlv_socket)
         except:
             client_socket.close()
@@ -54,18 +59,18 @@ async def run_proxy_server(loop):
 
 async def read_requests(loop, client_socket, dlv_conn):
     async for j in BufferedSocket(client_socket).jsons():
-        print('CLT --> PRX {}'.format(json.dumps(j)))
+        log('CLT --> PRX {}'.format(json.dumps(j)))
         if 'id' in j:
             # Request
             response = await dlv_conn.request(j)
             if j['method'] == 'RPCServer.CreateBreakpoint':
-                print('BREAKPOINTS: {}'.format(await get_breakpoints(loop, dlv_conn)))
+                log('BREAKPOINTS: {}'.format(await get_breakpoints(loop, dlv_conn)))
             response['id'] = j['id']
             await loop.sock_sendall(client_socket, bytes(json.dumps(response) + '\n', 'ascii'))
-            print('CLT <-- PRX {}'.format(response))
+            log('CLT <-- PRX {}'.format(response))
         else:
             # Notification
-            print('Notification')
+            log('Notification')
             dlv_conn.send_notification(j)
 
 
