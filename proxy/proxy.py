@@ -51,6 +51,7 @@ async def run_proxy_server(loop, listen_socket, dlv_conn):
 
 
 async def read_requests(loop, client_socket, dlv_conn):
+async def read_dlv_client_requests(loop, client_socket, dlv_conn):
     async for j in BufferedSocket(client_socket).jsons():
         log('CLT --> PRX {}'.format(json.dumps(j)))
         if 'id' in j:
