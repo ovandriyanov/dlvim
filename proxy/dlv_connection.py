@@ -22,6 +22,7 @@ class DlvConnection:
     def __del__(self):
         self.close()
 
+
     def __enter__(self):
         pass
 
