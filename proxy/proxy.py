@@ -32,7 +32,7 @@ class BufferedSocket:
                 yield obj
 
 
-async def run_proxy_server(loop):
+async def run_proxy_server(loop, dlv_conn):
     proxy_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_IP)
     proxy_server.setblocking(False)
     proxy_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -41,19 +41,9 @@ async def run_proxy_server(loop):
     log('Listening at {}'.format(proxy_listen_addr))
 
     while True:
-        log('Waiting for client...')
+        log('Waiting for dlv client...')
         client_socket, addr = await loop.sock_accept(proxy_server)
         log('Accepted client {}'.format(addr))
-
-        try:
-            dlv_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_IP)
-            dlv_socket.setblocking(False)
-            await loop.sock_connect(dlv_socket, dlv_server_addr)
-            log('Connected to DLV for client {}'.format(addr))
-            dlv_conn = DlvConnection(loop, dlv_socket)
-        except:
-            client_socket.close()
-            raise
         loop.create_task(read_requests(loop, client_socket, dlv_conn))
 
 
@@ -74,11 +64,21 @@ async def read_requests(loop, client_socket, dlv_conn):
             dlv_conn.send_notification(j)
 
 
+async def connect_to_dlv():
+    dlv_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_IP)
+    dlv_socket.setblocking(False)
+    await asyncio.get_event_loop().sock_connect(dlv_socket, dlv_server_addr)
+    log('Connected to DLV')
+    return DlvConnection(loop, dlv_socket)
+
+
 async def get_breakpoints(loop, dlv_conn):
     return await dlv_conn.request({'method': 'RPCServer.ListBreakpoints', 'params': [{}]})
 
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
-    loop.create_task(run_proxy_server(loop))
+    dlv_conn = loop.run_until_complete(connect_to_dlv())
+
+    loop.create_task(run_proxy_server(loop, dlv_conn))
     loop.run_forever()
