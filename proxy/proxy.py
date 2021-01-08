@@ -46,7 +46,7 @@ async def run_proxy_server(loop, listen_socket, dlv_conn):
     while True:
         log('Waiting for dlv client...')
         client_socket, addr = await loop.sock_accept(listen_socket)
-        log('Accepted client {}'.format(addr))
+        log('Accepted dlv client {}'.format(addr))
         loop.create_task(read_dlv_client_requests(loop, client_socket, dlv_conn))
 
 
