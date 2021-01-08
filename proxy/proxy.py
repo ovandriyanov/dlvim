@@ -32,17 +32,20 @@ class BufferedSocket:
                 yield obj
 
 
-async def run_proxy_server(loop, dlv_conn):
-    proxy_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_IP)
-    proxy_server.setblocking(False)
-    proxy_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    proxy_server.bind(proxy_listen_addr)
-    proxy_server.listen(100)
+def make_listen_socket(addr):
+    listen_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_IP)
+    listen_socket.setblocking(False)
+    listen_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    listen_socket.bind(addr)
+    listen_socket.listen(100)
     log('Listening at {}'.format(proxy_listen_addr))
+    return listen_socket
 
+
+async def run_proxy_server(loop, listen_socket, dlv_conn):
     while True:
         log('Waiting for dlv client...')
-        client_socket, addr = await loop.sock_accept(proxy_server)
+        client_socket, addr = await loop.sock_accept(listen_socket)
         log('Accepted client {}'.format(addr))
         loop.create_task(read_dlv_client_requests(loop, client_socket, dlv_conn))
 
@@ -80,6 +83,6 @@ if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     dlv_conn = loop.run_until_complete(connect_to_dlv())
 
-    loop.create_task(run_proxy_server(loop, dlv_conn))
+    loop.create_task(run_proxy_server(loop, make_listen_socket(proxy_listen_addr), dlv_conn))
     loop.create_task(run_vim_server(loop, dlv_conn))
     loop.run_forever()
