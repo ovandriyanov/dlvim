@@ -44,7 +44,7 @@ async def run_proxy_server(loop, dlv_conn):
         log('Waiting for dlv client...')
         client_socket, addr = await loop.sock_accept(proxy_server)
         log('Accepted client {}'.format(addr))
-        loop.create_task(read_requests(loop, client_socket, dlv_conn))
+        loop.create_task(read_dlv_client_requests(loop, client_socket, dlv_conn))
 
 
 async def read_requests(loop, client_socket, dlv_conn):
@@ -81,4 +81,5 @@ if __name__ == '__main__':
     dlv_conn = loop.run_until_complete(connect_to_dlv())
 
     loop.create_task(run_proxy_server(loop, dlv_conn))
+    loop.create_task(run_vim_server(loop, dlv_conn))
     loop.run_forever()
