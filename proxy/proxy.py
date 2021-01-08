@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from dlv_connection import DlvConnection
 from json_parser import JsonParser
 import asyncio
 import json
@@ -14,7 +15,6 @@ dlv_server_addr = ('127.0.0.1', 8888)
 class BufferedSocket:
     def __init__(self, sock: socket.socket):
         self.sock = sock
-        self.buf = bytes()
         self.json_parser = JsonParser()
 
 
@@ -23,8 +23,7 @@ class BufferedSocket:
             data_chunk = await asyncio.get_event_loop().sock_recv(self.sock, 4096)
             if not data_chunk:
                 return
-            obj = self.json_parser.parse(bytes.decode(data_chunk))
-            if obj is not None:
+            for obj in self.json_parser.parse(bytes.decode(data_chunk)):
                 yield obj
 
 
@@ -46,30 +45,32 @@ async def run_proxy_server(loop):
             dlv_socket.setblocking(False)
             await loop.sock_connect(dlv_socket, dlv_server_addr)
             print('Connected to DLV for client {}'.format(addr))
+            dlv_conn = DlvConnection(loop, dlv_socket)
         except:
             client_socket.close()
             raise
-        loop.create_task(read_requests(loop, client_socket, dlv_socket))
-        loop.create_task(read_responses(loop, dlv_socket, client_socket))
+        loop.create_task(read_requests(loop, client_socket, dlv_conn))
 
 
-reqmap = {}
-
-
-async def read_requests(loop, client_socket, dlv_socket):
+async def read_requests(loop, client_socket, dlv_conn):
     async for j in BufferedSocket(client_socket).jsons():
-        print('--> {}'.format(json.dumps(j)))
+        print('CLT --> PRX {}'.format(json.dumps(j)))
         if 'id' in j:
-            reqmap[j['id']] = j
-        await loop.sock_sendall(dlv_socket, bytes(json.dumps(j) + '\n', 'ascii'))
+            # Request
+            response = await dlv_conn.request(j)
+            if j['method'] == 'RPCServer.CreateBreakpoint':
+                print('BREAKPOINTS: {}'.format(await get_breakpoints(loop, dlv_conn)))
+            response['id'] = j['id']
+            await loop.sock_sendall(client_socket, bytes(json.dumps(response) + '\n', 'ascii'))
+            print('CLT <-- PRX {}'.format(response))
+        else:
+            # Notification
+            print('Notification')
+            dlv_conn.send_notification(j)
 
 
-async def read_responses(loop, dlv_socket, client_socket):
-    async for j in BufferedSocket(dlv_socket).jsons():
-        print('<-- {}'.format(json.dumps(j)))
-        if 'id' in j:
-            del reqmap[j['id']]
-        await loop.sock_sendall(client_socket, bytes(json.dumps(j) + '\n', 'ascii'))
+async def get_breakpoints(loop, dlv_conn):
+    return await dlv_conn.request({'method': 'RPCServer.ListBreakpoints', 'params': [{}]})
 
 
 if __name__ == '__main__':
