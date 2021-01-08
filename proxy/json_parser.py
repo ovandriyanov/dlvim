@@ -5,37 +5,30 @@ import jsonstreamer
 
 class JsonParser:
     def __init__(self):
-        self.ready_obj = None
+        self.ready_objects = []
         self.staging_obj = None
         self.init_streamer()
 
 
     def parse(self, data):
         self.streamer.consume(data)
-        obj, self.ready_obj = self.ready_obj, None
-        if obj is not None:
-            self.streamer.close()
-            self.init_streamer()
-        return obj
+        objects = self.ready_objects
+        self.ready_objects = []
+        return objects
 
 
-    def on_start(self):
-        self.staging_obj = {}
+    def close(self):
+        self.streamer.close()
 
 
-    def on_end(self):
-        self.ready_obj = self.staging_obj
-
-
-    def on_pair(self, pair):
-        self.staging_obj[pair[0]] = pair[1]
+    def on_element(self, element):
+        self.ready_objects.append(element)
 
 
     def init_streamer(self):
         self.streamer = jsonstreamer.ObjectStreamer()
-        self.streamer.add_listener('object_stream_start', self.on_start)
-        self.streamer.add_listener('object_stream_end', self.on_end)
-        self.streamer.add_listener('pair', self.on_pair)
+        self.streamer.consume('{}')
+        self.streamer.add_listener('element', self.on_element)
 
 
 if __name__ == '__main__':
@@ -43,24 +36,38 @@ if __name__ == '__main__':
 
     p = JsonParser()
     data = '{"a": 1, "b": [{"x": 5, "y": 10}, {"x": 15, "y": 20}]}'
-    canonical = {"a": 1, "b": [{"x": 5, "y": 10}, {"x": 15, "y": 20}]}
-    obj = p.parse(data)
-    assert obj == canonical
+    canonical = [{"a": 1, "b": [{"x": 5, "y": 10}, {"x": 15, "y": 20}]}]
+    objs = p.parse(data)
+    assert objs == canonical
 
-    obj = p.parse(data[:10])
-    assert not obj
-    obj = p.parse(data[10:])
-    assert obj == canonical
+    objs = p.parse(data[:10])
+    assert not objs
+    objs = p.parse(data[10:])
+    assert objs == canonical
 
     p = JsonParser()
     data = '{}'
-    canonical = {}
-    obj = p.parse(data)
-    assert obj == canonical
+    canonical = [{}]
+    objs = p.parse(data)
+    assert objs == canonical
 
     data = '{"a": 1}'
-    canonical = {"a": 1}
-    obj = p.parse(data)
-    assert obj == canonical
+    canonical = [{"a": 1}]
+    objs = p.parse(data)
+    assert objs == canonical
+
+    p = JsonParser()
+    data = '{"a": 1} {"b": 2}'
+    canonical = [{"a": 1}, {"b": 2}]
+    objs = p.parse(data)
+    assert len(objs) == 2
+    assert objs == canonical
+    p.close()
+
+    p = JsonParser()
+    objs = p.parse(data[:3])
+    assert len(objs) == 0
+    objs = p.parse(data[3:])
+    assert objs == canonical
 
     print('OK')
