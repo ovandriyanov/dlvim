@@ -75,7 +75,7 @@ async def read_dlv_client_requests(loop, client_socket, dlv_conn, vim_conn):
         if 'id' in j:
             # Request
             response = await dlv_conn.request(j)
-            if j['method'] == 'RPCServer.CreateBreakpoint':
+            if j['method'] in {'RPCServer.CreateBreakpoint', 'RPCServer.ClearBreakpoint'}:
                 vim_conn.ex('call OnBreakpointsUpdated({})'.format(bufnr))
             response['id'] = j['id']
             await loop.sock_sendall(client_socket, bytes(json.dumps(response) + '\n', 'ascii'))
