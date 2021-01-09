@@ -67,16 +67,26 @@ async def handle_vim_requests(dlv_conn, vim_conn):
         if req[0] == 'get_breakpoints':
             breakpoints = await get_breakpoints(dlv_conn)
             future.set_result(breakpoints)
+        elif req[0] == 'get_state':
+            state = await get_state(dlv_conn)
+            future.set_result(state)
 
+
+def is_pc_change_command(j):
+    return j['method'] == 'RPCServer.Command' and j['params'][0]['name'] in {'continue', 'next', 'step', 'stepOut'}
 
 async def read_dlv_client_requests(loop, client_socket, dlv_conn, vim_conn):
     async for j in BufferedSocket(client_socket).jsons():
         log('CLT --> PRX {}'.format(json.dumps(j)))
         if 'id' in j:
             # Request
+            if is_pc_change_command(j):
+                vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
             response = await dlv_conn.request(j)
             if j['method'] in {'RPCServer.CreateBreakpoint', 'RPCServer.ClearBreakpoint'}:
                 vim_conn.ex('call OnBreakpointsUpdated({})'.format(bufnr))
+            elif is_pc_change_command(j):
+                vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
             response['id'] = j['id']
             await loop.sock_sendall(client_socket, bytes(json.dumps(response) + '\n', 'ascii'))
             log('CLT <-- PRX {}'.format(json.dumps(response)))
@@ -96,6 +106,10 @@ async def connect_to_dlv():
 
 async def get_breakpoints(dlv_conn):
     return await dlv_conn.request({'method': 'RPCServer.ListBreakpoints', 'params': [{}]})
+
+
+async def get_state(dlv_conn):
+    return await dlv_conn.request({'method': 'RPCServer.State', "params": [{'NonBlocking': True}]})
 
 
 async def run_dlv_server():

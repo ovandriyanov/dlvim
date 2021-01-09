@@ -4,7 +4,8 @@ let s:proxy_py_path = '/home/ovandriyanov/github/ovandriyanov/dlvim/proxy/proxy.
 "let s:proxy_py_path = ['bash', '-c', 'while true; do sleep 5; echo kek; done']
 
 highlight CurrentInstruction ctermbg=lightblue
-sign define CurrentInstruction linehl=CurrentInstruction
+sign define DlvimCurrentInstruction linehl=CurrentInstruction
+sign define DlvimBreakpoint text=⬤
 
 function! s:runDlvim() abort
     let l:codewinid = win_getid()
@@ -23,6 +24,7 @@ endfunction
 function! s:cleanupDlvClientBuffer(bufnr) abort
     echom 'DELETE BUFFER ' . a:bufnr
     call s:ClearBreakpoints()
+    call s:ClearCurrentInstruction()
     let l:job = getbufvar(a:bufnr, 'job')
     call job_stop(l:job)
 endfunction
@@ -37,12 +39,7 @@ function! s:BreakpointName(breakpoint_id, dlv_bufnr) abort
 endfunction
 
 function! s:ClearBreakpoints() abort
-    execute 'sign unplace * group=Dlvim'
-    for l:sign in sign_getdefined()
-        if l:sign['name'] =~# 'Dlv[0-9]\+Breakpoint[0-9]\+'
-            call sign_undefine(l:sign['name'])
-        endif
-    endfor
+    sign unplace * group=DlvimBreakpoints
 endfunction
 
 function! OnBreakpointsUpdated(bufnr) abort
@@ -58,8 +55,38 @@ function! OnBreakpointsUpdated(bufnr) abort
         endif
 
         let l:bpname = s:BreakpointName(l:b['id'], a:bufnr)
-	    execute 'sign define ' . l:bpname . ' text=⬤'
-	    execute 'sign place ' . l:b['id'] . ' group=Dlvim line=' . l:b['line'] . ' name=' . l:bpname . ' buffer=' . l:bufnr
+	    execute 'sign place ' . l:b['id'] . ' group=DlvimBreakpoints line=' . l:b['line'] . ' name=DlvimBreakpoint buffer=' . l:bufnr
     endfor
+    redraw
+endfunction
+
+function! s:ClearCurrentInstruction() abort
+    sign unplace * group=DlvimCurrentInstruction
+endfunction
+
+function! s:SetCurrentInstruction(bufnr, file, line) abort
+    let l:prevwinid = win_getid()
+    let l:codewinid = getbufvar(a:bufnr, 'codewinid')
+
+    call s:ClearCurrentInstruction()
+
+    call win_gotoid(l:codewinid)
+    execute 'edit ' . a:file
+    execute 'sign place 1 name=DlvimCurrentInstruction group=DlvimCurrentInstruction line=' . a:line . ' buffer=' . bufnr()
+    execute a:line
+    normal zz
+    call win_gotoid(l:prevwinid)
+endfunction
+
+function! OnStateUpdated(bufnr) abort
+    echom 'OnStateUpdated'
+    let l:chan = getbufvar(a:bufnr, 'chan')
+    let l:state = ch_evalexpr(l:chan, ['get_state'])
+    if !has_key(l:state['result'], 'State') || l:state['result']['State']['Running']
+        call s:ClearCurrentInstruction()
+    else
+        let l:curthread = l:state['result']['State']['currentThread']
+        call s:SetCurrentInstruction(a:bufnr, l:curthread['file'], l:curthread['line'])
+    endif
     redraw
 endfunction
