@@ -19,6 +19,7 @@ endfunction
 
 function! s:cleanupDlvClientBuffer(bufnr) abort
     echom 'DELETE BUFFER ' . a:bufnr
+    call s:ClearBreakpoints()
     let l:job = getbufvar(a:bufnr, 'job')
     call job_stop(l:job)
 endfunction
@@ -32,19 +33,22 @@ function! s:BreakpointName(breakpoint_id, dlv_bufnr) abort
     return 'Dlv' . a:dlv_bufnr . 'Breakpoint' . a:breakpoint_id
 endfunction
 
-function! OnBreakpointsUpdated(bufnr) abort
-    "echom 'BREAKPOINTS UPDATED'
-    let l:chan = getbufvar(a:bufnr, 'chan')
-    let l:bufnr = winbufnr(getbufvar(a:bufnr, 'codewinid'))
-
-    let l:breakpoints = ch_evalexpr(l:chan, ['get_breakpoints'])
-
-    execute 'sign unplace * group=Dlvim buffer=' . l:bufnr
+function! s:ClearBreakpoints() abort
+    execute 'sign unplace * group=Dlvim'
     for l:sign in sign_getdefined()
         if l:sign['name'] =~# 'Dlv[0-9]\+Breakpoint[0-9]\+'
             call sign_undefine(l:sign['name'])
         endif
     endfor
+endfunction
+
+function! OnBreakpointsUpdated(bufnr) abort
+    "echom 'BREAKPOINTS UPDATED'
+    let l:chan = getbufvar(a:bufnr, 'chan')
+    let l:bufnr = winbufnr(getbufvar(a:bufnr, 'codewinid'))
+
+    call s:ClearBreakpoints()
+    let l:breakpoints = ch_evalexpr(l:chan, ['get_breakpoints'])
     for l:b in l:breakpoints['result']['Breakpoints']
         if l:b['id'] <= 0
             continue
