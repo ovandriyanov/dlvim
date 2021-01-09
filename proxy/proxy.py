@@ -73,7 +73,7 @@ async def read_dlv_client_requests(loop, client_socket, dlv_conn, vim_conn):
             # Request
             response = await dlv_conn.request(j)
             if j['method'] == 'RPCServer.CreateBreakpoint':
-                vim_conn.ex("call OnBreakpointsUpdated()")
+                vim_conn.ex('call OnBreakpointsUpdated()')
             response['id'] = j['id']
             await loop.sock_sendall(client_socket, bytes(json.dumps(response) + '\n', 'ascii'))
             log('CLT <-- PRX {}'.format(response))
