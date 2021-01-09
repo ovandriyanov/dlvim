@@ -40,6 +40,11 @@ function! OnBreakpointsUpdated(bufnr) abort
     let l:breakpoints = ch_evalexpr(l:chan, ['get_breakpoints'])
 
     execute 'sign unplace * group=Dlvim buffer=' . l:bufnr
+    for l:sign in sign_getdefined()
+        if l:sign['name'] =~# 'Dlv[0-9]\+Breakpoint[0-9]\+'
+            call sign_undefine(l:sign['name'])
+        endif
+    endfor
     for l:b in l:breakpoints['result']['Breakpoints']
         if l:b['id'] <= 0
             continue
