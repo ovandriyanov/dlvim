@@ -3,6 +3,9 @@ command! Dlvim call s:runDlvim()
 let s:proxy_py_path = '/home/ovandriyanov/github/ovandriyanov/dlvim/proxy/proxy.py'
 "let s:proxy_py_path = ['bash', '-c', 'while true; do sleep 5; echo kek; done']
 
+highlight CurrentInstruction ctermbg=lightblue
+sign define CurrentInstruction linehl=CurrentInstruction
+
 function! s:runDlvim() abort
     let l:codewinid = win_getid()
     new
