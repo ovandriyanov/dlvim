@@ -11,6 +11,7 @@ import sys
 
 proxy_listen_addr = ('127.0.0.1', 7777)
 dlv_server_addr = ('127.0.0.1', 8888)
+dlv_argv = ['/home/ovandriyanov/bin/dlv', 'exec', '/home/ovandriyanov/go/src/kek/main', '--listen', '127.0.0.1:8888', '--headless']
 
 
 def log(msg):
@@ -80,10 +81,26 @@ async def get_breakpoints(loop, dlv_conn):
     return await dlv_conn.request({'method': 'RPCServer.ListBreakpoints', 'params': [{}]})
 
 
+async def run_dlv_server():
+    process = await asyncio.subprocess.create_subprocess_exec(
+        *dlv_argv,
+        stdin = asyncio.subprocess.DEVNULL,
+        stdout = asyncio.subprocess.PIPE,
+        stderr = asyncio.subprocess.DEVNULL,
+    )
+    line = await process.stdout.readline()
+    if line != b'API server listening at: 127.0.0.1:8888\n':
+        raise Exception('Wtf: {}'.format(line))
+    return process
+
+
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
+
+    dlv_process = loop.run_until_complete(run_dlv_server())
     dlv_conn = loop.run_until_complete(connect_to_dlv())
 
+    loop.create_task(dlv_process.communicate())
     loop.create_task(run_proxy_server(loop, make_listen_socket(proxy_listen_addr), dlv_conn))
     loop.create_task(run_vim_server(loop, dlv_conn))
     loop.run_forever()
