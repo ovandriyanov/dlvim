@@ -45,10 +45,7 @@ function! OnBreakpointsUpdated(bufnr) abort
             continue
         endif
 
-        if fnamemodify(l:b['file'], ':p') !=# fnamemodify(bufname(l:bufnr), ':p')
-            continue
-        endif
-
+        let l:bpname = s:BreakpointName(l:b['id'], a:bufnr)
         let l:bpname = s:BreakpointName(l:b['id'])
 	    execute 'sign define ' . l:bpname . ' text=⬤'
 	    execute 'sign place ' . l:b['id'] . ' group=Dlvim line=' . l:b['line'] . ' name=' . l:bpname . ' buffer=' . l:bufnr
