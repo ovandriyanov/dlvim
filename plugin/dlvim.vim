@@ -50,7 +50,7 @@ function! OnBreakpointsUpdated(bufnr) abort
         endif
 
         let l:bpname = s:BreakpointName(l:b['id'])
-	    execute 'sign define ' . l:bpname . ' text=⬤ texthl=Search'
+	    execute 'sign define ' . l:bpname . ' text=⬤'
 	    execute 'sign place ' . l:b['id'] . ' group=Dlvim line=' . l:b['line'] . ' name=' . l:bpname . ' buffer=' . l:bufnr
     endfor
     redraw
