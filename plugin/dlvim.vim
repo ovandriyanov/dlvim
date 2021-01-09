@@ -4,6 +4,7 @@ let s:proxy_py_path = '/home/ovandriyanov/github/ovandriyanov/dlvim/proxy/proxy.
 "let s:proxy_py_path = ['bash', '-c', 'while true; do sleep 5; echo kek; done']
 
 function! s:runDlvim() abort
+    let l:codewinid = win_getid()
     new
     let l:job = job_start(s:proxy_py_path, {'mode': 'json', 'err_io': 'buffer', 'err_name': 'thelog'})
     call ch_evalexpr(l:job, ['init', bufnr()])
@@ -13,6 +14,7 @@ function! s:runDlvim() abort
     execute 'autocmd BufDelete <buffer> call s:cleanupDlvClientBuffer(' . bufnr() . ')'
     let b:job = l:job
     let b:chan = l:chan
+    let b:codewinid = l:codewinid
 endfunction
 
 function! s:cleanupDlvClientBuffer(bufnr) abort
