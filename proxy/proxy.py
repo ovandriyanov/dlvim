@@ -61,10 +61,12 @@ async def accept_vim(listen_socket):
     return VimConnection(asyncio.get_event_loop(), client_socket)
 
 
-async def handle_vim_requests(vim_conn):
+async def handle_vim_requests(dlv_conn, vim_conn):
     log('Receiving vim requests...')
     async for (req, future) in vim_conn.receive_requests():
-        future.set_result(True)
+        if req[0] == 'get_breakpoints':
+            breakpoints = await get_breakpoints(dlv_conn)
+            future.set_result(breakpoints)
 
 
 async def read_dlv_client_requests(loop, client_socket, dlv_conn, vim_conn):
@@ -92,7 +94,7 @@ async def connect_to_dlv():
     return DlvConnection(loop, dlv_socket)
 
 
-async def get_breakpoints(loop, dlv_conn):
+async def get_breakpoints(dlv_conn):
     return await dlv_conn.request({'method': 'RPCServer.ListBreakpoints', 'params': [{}]})
 
 
@@ -125,5 +127,5 @@ if __name__ == '__main__':
 
     loop.create_task(dlv_process.communicate())
     loop.create_task(run_proxy_server(loop, proxy_listen_socket, dlv_conn, vim_conn))
-    loop.create_task(handle_vim_requests(vim_conn))
+    loop.create_task(handle_vim_requests(dlv_conn, vim_conn))
     loop.run_forever()

@@ -28,6 +28,29 @@ function! ProxyRequest(req) abort
     echom 'RESULT: ' . l:result
 endfunction
 
+function! s:BreakpointName(breakpoint_id) abort
+    return 'Breakpoint' . a:breakpoint_id
+endfunction
+
 function! OnBreakpointsUpdated(bufnr) abort
-    echom 'Breakpoints for buffer ' . a:bufnr . ' updated!'
+    "echom 'BREAKPOINTS UPDATED'
+    let l:chan = getbufvar(a:bufnr, 'chan')
+    let l:bufnr = winbufnr(getbufvar(a:bufnr, 'codewinid'))
+
+    let l:breakpoints = ch_evalexpr(l:chan, ['get_breakpoints'])
+
+    execute 'sign unplace * group=Dlvim buffer=' . l:bufnr
+    for l:b in l:breakpoints['result']['Breakpoints']
+        if l:b['id'] <= 0
+            continue
+        endif
+
+        if fnamemodify(l:b['file'], ':p') !=# fnamemodify(bufname(l:bufnr), ':p')
+            continue
+        endif
+
+        let l:bpname = s:BreakpointName(l:b['id'])
+	    execute 'sign define ' . l:bpname . ' text=⬤ texthl=Search'
+	    execute 'sign place ' . l:b['id'] . ' group=Dlvim line=' . l:b['line'] . ' name=' . l:bpname . ' buffer=' . l:bufnr
+    endfor
 endfunction
