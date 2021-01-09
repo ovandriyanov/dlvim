@@ -53,4 +53,5 @@ function! OnBreakpointsUpdated(bufnr) abort
 	    execute 'sign define ' . l:bpname . ' text=⬤ texthl=Search'
 	    execute 'sign place ' . l:b['id'] . ' group=Dlvim line=' . l:b['line'] . ' name=' . l:bpname . ' buffer=' . l:bufnr
     endfor
+    redraw
 endfunction
