@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from dlv_connection import DlvConnection
+from vim_connection import VimConnection
 from json_parser import JsonParser
 import asyncio
 import json
@@ -10,6 +11,7 @@ import sys
 
 
 proxy_listen_addr = ('127.0.0.1', 7777)
+vim_listen_addr = ('127.0.0.1', 7778)
 dlv_server_addr = ('127.0.0.1', 8888)
 dlv_argv = ['/home/ovandriyanov/bin/dlv', 'exec', '/home/ovandriyanov/go/src/kek/main', '--listen', '127.0.0.1:8888', '--headless']
 
@@ -39,7 +41,7 @@ def make_listen_socket(addr):
     listen_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     listen_socket.bind(addr)
     listen_socket.listen(100)
-    log('Listening at {}'.format(proxy_listen_addr))
+    log('Listening at {}'.format(addr))
     return listen_socket
 
 
@@ -51,7 +53,19 @@ async def run_proxy_server(loop, listen_socket, dlv_conn):
         loop.create_task(read_dlv_client_requests(loop, client_socket, dlv_conn))
 
 
-async def read_requests(loop, client_socket, dlv_conn):
+async def accept_vim(listen_socket):
+    log('Waiting for vim to connect...')
+    client_socket, addr = await loop.sock_accept(listen_socket)
+    log('Accepted vim {}'.format(addr))
+    return VimConnection(asyncio.get_event_loop(), client_socket)
+
+
+async def handle_vim_requests(vim_conn):
+    log('Receiving vim requests...')
+    async for (req, future) in vim_conn.receive_requests():
+        future.set_result(True)
+
+
 async def read_dlv_client_requests(loop, client_socket, dlv_conn):
     async for j in BufferedSocket(client_socket).jsons():
         log('CLT --> PRX {}'.format(json.dumps(j)))
@@ -99,8 +113,12 @@ if __name__ == '__main__':
 
     dlv_process = loop.run_until_complete(run_dlv_server())
     dlv_conn = loop.run_until_complete(connect_to_dlv())
+    vim_listen_socket = make_listen_socket(vim_listen_addr)
+    req = json.loads(sys.stdin.readline())
+    print('[{}, "Ready to accept vim"]'.format(req[0]), flush=True)
+    vim_conn = loop.run_until_complete(accept_vim(vim_listen_socket))
 
     loop.create_task(dlv_process.communicate())
     loop.create_task(run_proxy_server(loop, make_listen_socket(proxy_listen_addr), dlv_conn))
-    loop.create_task(run_vim_server(loop, dlv_conn))
+    loop.create_task(handle_vim_requests(vim_conn))
     loop.run_forever()
