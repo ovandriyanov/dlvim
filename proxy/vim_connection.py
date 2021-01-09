@@ -60,7 +60,7 @@ class VimConnection:
             self.send_queue = []
             for item in sending:
                 await self.loop.sock_sendall(self.socket, self.marshal(item))
-                log('PRX --> VIM {}'.format(item))
+                log('PRX --> VIM {}'.format(json.dumps(item)))
 
 
     async def receive_requests(self):
@@ -69,7 +69,7 @@ class VimConnection:
             if not data:
                 return
             for j in self.json_parser.parse(bytes.decode(data, 'ascii')):
-                log('PRX <-- VIM {}'.format(j))
+                log('PRX <-- VIM {}'.format(json.dumps(j)))
                 reqid, req = j
                 future = asyncio.Future()
                 yield req, future

@@ -79,7 +79,7 @@ async def read_dlv_client_requests(loop, client_socket, dlv_conn, vim_conn):
                 vim_conn.ex('call OnBreakpointsUpdated({})'.format(bufnr))
             response['id'] = j['id']
             await loop.sock_sendall(client_socket, bytes(json.dumps(response) + '\n', 'ascii'))
-            log('CLT <-- PRX {}'.format(response))
+            log('CLT <-- PRX {}'.format(json.dumps(response)))
         else:
             # Notification
             log('Notification')
