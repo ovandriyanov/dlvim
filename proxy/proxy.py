@@ -45,12 +45,12 @@ def make_listen_socket(addr):
     return listen_socket
 
 
-async def run_proxy_server(loop, listen_socket, dlv_conn):
+async def run_proxy_server(loop, listen_socket, dlv_conn, vim_conn):
     while True:
         log('Waiting for dlv client...')
         client_socket, addr = await loop.sock_accept(listen_socket)
         log('Accepted dlv client {}'.format(addr))
-        loop.create_task(read_dlv_client_requests(loop, client_socket, dlv_conn))
+        loop.create_task(read_dlv_client_requests(loop, client_socket, dlv_conn, vim_conn))
 
 
 async def accept_vim(listen_socket):
@@ -66,14 +66,14 @@ async def handle_vim_requests(vim_conn):
         future.set_result(True)
 
 
-async def read_dlv_client_requests(loop, client_socket, dlv_conn):
+async def read_dlv_client_requests(loop, client_socket, dlv_conn, vim_conn):
     async for j in BufferedSocket(client_socket).jsons():
         log('CLT --> PRX {}'.format(json.dumps(j)))
         if 'id' in j:
             # Request
             response = await dlv_conn.request(j)
             if j['method'] == 'RPCServer.CreateBreakpoint':
-                log('BREAKPOINTS: {}'.format(await get_breakpoints(loop, dlv_conn)))
+                vim_conn.ex("call OnBreakpointsUpdated()")
             response['id'] = j['id']
             await loop.sock_sendall(client_socket, bytes(json.dumps(response) + '\n', 'ascii'))
             log('CLT <-- PRX {}'.format(response))

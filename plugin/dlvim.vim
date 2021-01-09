@@ -24,3 +24,7 @@ function! ProxyRequest(req) abort
     let l:result = ch_evalexpr(b:chan, a:req)
     echom 'RESULT: ' . l:result
 endfunction
+
+function! OnBreakpointsUpdated() abort
+    echom 'Breakpoints updated!'
+endfunction
