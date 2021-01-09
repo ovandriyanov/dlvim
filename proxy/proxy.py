@@ -114,11 +114,12 @@ if __name__ == '__main__':
     dlv_process = loop.run_until_complete(run_dlv_server())
     dlv_conn = loop.run_until_complete(connect_to_dlv())
     vim_listen_socket = make_listen_socket(vim_listen_addr)
+    proxy_listen_socket = make_listen_socket(proxy_listen_addr)
     req = json.loads(sys.stdin.readline())
     print('[{}, "Ready to accept vim"]'.format(req[0]), flush=True)
     vim_conn = loop.run_until_complete(accept_vim(vim_listen_socket))
 
     loop.create_task(dlv_process.communicate())
-    loop.create_task(run_proxy_server(loop, make_listen_socket(proxy_listen_addr), dlv_conn))
+    loop.create_task(run_proxy_server(loop, proxy_listen_socket, dlv_conn, vim_conn))
     loop.create_task(handle_vim_requests(vim_conn))
     loop.run_forever()
