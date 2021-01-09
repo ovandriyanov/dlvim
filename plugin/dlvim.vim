@@ -9,6 +9,7 @@ function! s:runDlvim() abort
     call ch_evalexpr(l:job, ['init', bufnr()])
     let l:chan = ch_open('127.0.0.1:7778', {'mode': 'json'})
     terminal ++curwin ++close dlv connect 127.0.0.1:7777
+    resize 8
     execute 'autocmd BufDelete <buffer> call s:cleanupDlvClientBuffer(' . bufnr() . ')'
     let b:job = l:job
     let b:chan = l:chan
