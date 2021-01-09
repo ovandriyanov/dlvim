@@ -14,6 +14,7 @@ proxy_listen_addr = ('127.0.0.1', 7777)
 vim_listen_addr = ('127.0.0.1', 7778)
 dlv_server_addr = ('127.0.0.1', 8888)
 dlv_argv = ['/home/ovandriyanov/bin/dlv', 'exec', '/home/ovandriyanov/go/src/kek/main', '--listen', '127.0.0.1:8888', '--headless']
+bufnr = -1
 
 
 def log(msg):
@@ -73,7 +74,7 @@ async def read_dlv_client_requests(loop, client_socket, dlv_conn, vim_conn):
             # Request
             response = await dlv_conn.request(j)
             if j['method'] == 'RPCServer.CreateBreakpoint':
-                vim_conn.ex('call OnBreakpointsUpdated()')
+                vim_conn.ex('call OnBreakpointsUpdated({})'.format(bufnr))
             response['id'] = j['id']
             await loop.sock_sendall(client_socket, bytes(json.dumps(response) + '\n', 'ascii'))
             log('CLT <-- PRX {}'.format(response))
@@ -116,6 +117,9 @@ if __name__ == '__main__':
     vim_listen_socket = make_listen_socket(vim_listen_addr)
     proxy_listen_socket = make_listen_socket(proxy_listen_addr)
     req = json.loads(sys.stdin.readline())
+    assert len(req[1]) == 2
+    assert req[1][0] == 'init'
+    bufnr = req[1][1]
     print('[{}, "Ready to accept vim"]'.format(req[0]), flush=True)
     vim_conn = loop.run_until_complete(accept_vim(vim_listen_socket))
 

@@ -6,7 +6,7 @@ let s:proxy_py_path = '/home/ovandriyanov/github/ovandriyanov/dlvim/proxy/proxy.
 function! s:runDlvim() abort
     new
     let l:job = job_start(s:proxy_py_path, {'mode': 'json', 'err_io': 'buffer', 'err_name': 'thelog'})
-    call ch_evalexpr(l:job, 'Are you ready?')
+    call ch_evalexpr(l:job, ['init', bufnr()])
     let l:chan = ch_open('127.0.0.1:7778', {'mode': 'json'})
     terminal ++curwin ++close dlv connect 127.0.0.1:7777
     execute 'autocmd BufDelete <buffer> call s:cleanupDlvClientBuffer(' . bufnr() . ')'
@@ -25,6 +25,6 @@ function! ProxyRequest(req) abort
     echom 'RESULT: ' . l:result
 endfunction
 
-function! OnBreakpointsUpdated() abort
-    echom 'Breakpoints updated!'
+function! OnBreakpointsUpdated(bufnr) abort
+    echom 'Breakpoints for buffer ' . a:bufnr . ' updated!'
 endfunction
