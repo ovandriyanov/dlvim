@@ -28,8 +28,8 @@ function! ProxyRequest(req) abort
     echom 'RESULT: ' . l:result
 endfunction
 
-function! s:BreakpointName(breakpoint_id) abort
-    return 'Breakpoint' . a:breakpoint_id
+function! s:BreakpointName(breakpoint_id, dlv_bufnr) abort
+    return 'Dlv' . a:dlv_bufnr . 'Breakpoint' . a:breakpoint_id
 endfunction
 
 function! OnBreakpointsUpdated(bufnr) abort
@@ -46,7 +46,6 @@ function! OnBreakpointsUpdated(bufnr) abort
         endif
 
         let l:bpname = s:BreakpointName(l:b['id'], a:bufnr)
-        let l:bpname = s:BreakpointName(l:b['id'])
 	    execute 'sign define ' . l:bpname . ' text=⬤'
 	    execute 'sign place ' . l:b['id'] . ' group=Dlvim line=' . l:b['line'] . ' name=' . l:bpname . ' buffer=' . l:bufnr
     endfor
