@@ -7,6 +7,10 @@ highlight CurrentInstruction ctermbg=lightblue
 sign define DlvimCurrentInstruction linehl=CurrentInstruction
 sign define DlvimBreakpoint text=⬤
 
+if !exists('g:DlvimBuffers')
+    let g:DlvimBuffers = {}
+endif
+
 function! s:runDlvim() abort
     let l:codewinid = win_getid()
     new
@@ -19,6 +23,7 @@ function! s:runDlvim() abort
     let b:job = l:job
     let b:chan = l:chan
     let b:codewinid = l:codewinid
+    let g:DlvimBuffers[bufnr()] = v:null
 endfunction
 
 function! s:cleanupDlvClientBuffer(bufnr) abort
@@ -26,6 +31,7 @@ function! s:cleanupDlvClientBuffer(bufnr) abort
     call s:ClearCurrentInstruction()
     let l:job = getbufvar(a:bufnr, 'job')
     call job_stop(l:job)
+    unlet g:DlvimBuffers[a:bufnr]
 endfunction
 
 function! ProxyRequest(req) abort
@@ -85,4 +91,18 @@ function! OnStateUpdated(bufnr) abort
         call s:SetCurrentInstruction(a:bufnr, l:curthread['file'], l:curthread['line'])
     endif
     redraw
+endfunction
+
+function! GetDlvimBuffer(bufnr) abort
+    if a:bufnr > 0
+        return a:bufnr
+    endif
+    if len(g:DlvimBuffers) == 1
+        return +keys(g:DlvimBuffers)[0]
+    endif
+    if len(g:DlvimBuffers) == 0
+        throw 'No debug is currently in process'
+    else
+        throw 'More than one debug is currently in process, please disambiguate the debug session by specifying a buffer number'
+    endif
 endfunction
