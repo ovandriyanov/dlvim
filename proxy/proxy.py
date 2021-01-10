@@ -76,35 +76,43 @@ async def handle_vim_requests(dlv_conn, vim_conn):
                 future.set_result(None)
                 vim_conn.ex('call OnBreakpointsUpdated({})'.format(bufnr))
             except Exception as e:
-                future.set_result(e)
+                future.set_result(str(e))
         elif req[0] == 'next':
             try:
                 await command(dlv_conn, 'next')
                 future.set_result(None)
                 vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
             except Exception as e:
-                future.set_result(e)
+                future.set_result(str(e))
         elif req[0] == 'continue':
             try:
                 await command(dlv_conn, 'continue')
                 future.set_result(None)
                 vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
             except Exception as e:
-                future.set_result(e)
+                future.set_result(str(e))
         elif req[0] == 'step':
             try:
                 await command(dlv_conn, 'step')
                 future.set_result(None)
                 vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
             except Exception as e:
-                future.set_result(e)
+                future.set_result(str(e))
         elif req[0] == 'stepout':
             try:
                 await command(dlv_conn, 'stepOut')
                 future.set_result(None)
                 vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
             except Exception as e:
-                future.set_result(e)
+                future.set_result(str(e))
+        elif req[0] == 'eval':
+            try:
+                value = await evaluate(dlv_conn, req[1])
+                future.set_result([value, None])
+            except Exception as e:
+                log('EXCEPTION: {}'.format(e))
+                future.set_result([None, str(e)])
+
 
 
 def is_pc_change_command(j):
@@ -226,6 +234,30 @@ async def command(dlv_conn, cmd):
             }
         }],
     })
+
+
+async def evaluate(dlv_conn, expr):
+    response = await dlv_conn.request({
+        "method": "RPCServer.Eval",
+        "params": [{
+            "Scope": {
+                "GoroutineID": -1,
+                "Frame": 0,
+                "DeferredCall": 0
+            },
+            "Expr": expr,
+            "Cfg": {
+                "FollowPointers": True,
+                "MaxVariableRecurse": 1,
+                "MaxStringLen": 64,
+                "MaxArrayValues": 64,
+                "MaxStructFields": -1
+            }
+        }],
+    })
+    if response['error'] is not None:
+        raise Exception(response['error'])
+    return response['result']['Variable']['value']
 
 
 async def continue_execution(dlv_conn):

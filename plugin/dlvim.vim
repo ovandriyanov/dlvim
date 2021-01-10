@@ -145,6 +145,33 @@ function! DlvimStepOut(bufnr = -1) abort
     call ch_evalexpr(l:chan, ['stepout'])
 endfunction
 
+function! GetCurrentWord() abort
+    let l:isk = &isk
+    let &isk = 'a-z,A-Z,48-57,_,.,-,>'
+    let l:word = expand('<cword>')
+    let &isk = l:isk
+    return l:word
+endfunction
+
+function! GetLastSelection() abort
+    let l:zreg = getreg('z')
+    silent normal gv"zy
+    let l:selection = getreg('z')
+    call setreg('z', l:zreg)
+    return l:selection
+endfunction
+
+function! DlvimPrint(object, bufnr = -1) abort
+    let l:bufnr = GetDlvimBuffer(a:bufnr)
+    let l:chan = getbufvar(l:bufnr, 'chan')
+    let l:response = ch_evalexpr(l:chan, ['eval', a:object])
+    if l:response[1] !=# v:null
+        echoerr l:response[1]
+        return
+    endif
+    echo l:response[0]
+endfunction
+
 nnoremap <C-^>ac<C-^>b :call DlvimToggleBreakpointUnderCursor()<Cr>
 nnoremap <C-^>ac<C-^>n :call DlvimNext()<Cr>
 nnoremap <C-^>ac<C-^>c :call DlvimContinue()<Cr>
@@ -153,3 +180,5 @@ nnoremap <C-^>ac<C-^>o :call DlvimStepOut()<Cr>
 nnoremap <C-^>ac<C-^>k :call DlvimUp()<Cr>
 nnoremap <C-^>ac<C-^>j :call DlvimDown()<Cr>
 nnoremap <C-^>ac<C-^>i :call DlvimInterrupt()<Cr>
+nnoremap <C-^>ac<C-^>p :call DlvimPrint(GetCurrentWord())<Cr>
+vnoremap <C-^>ac<C-^>p :<C-U>call DlvimPrint(GetLastSelection())<Cr>
