@@ -29,9 +29,17 @@ endfunction
 function! s:cleanupDlvClientBuffer(bufnr) abort
     call s:ClearBreakpoints()
     call s:ClearCurrentInstruction()
-    let l:job = getbufvar(a:bufnr, 'job')
-    call job_stop(l:job)
+    let l:job = getbufvar(a:bufnr, 'job', v:null)
+    if l:job !=# v:null
+        call job_stop(l:job)
+    endif
     unlet g:DlvimBuffers[a:bufnr]
+endfunction
+
+function! DlvCleanup() abort
+    for l:bufnr in keys(g:DlvimBuffers)
+        call s:cleanupDlvClientBuffer(l:bufnr)
+    endfor
 endfunction
 
 function! ProxyRequest(req) abort
