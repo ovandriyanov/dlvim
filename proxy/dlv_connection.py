@@ -4,6 +4,12 @@ import copy
 import ctypes
 import json
 import socket
+import sys
+
+
+def log(msg):
+    print(msg, file=sys.stderr, flush=True)
+
 
 class DlvConnection:
     def __init__(self, loop: asyncio.AbstractEventLoop, socket: socket.socket):
@@ -84,7 +90,7 @@ class DlvConnection:
             self.send_queue = []
             for item in sending:
                 await self.loop.sock_sendall(self.socket, self.marshal(item))
-                print('PRX --> DLV {}'.format(item))
+                log('PRX --> DLV {}'.format(item))
 
 
     async def receive_responses(self):
@@ -93,7 +99,7 @@ class DlvConnection:
             if not data:
                 return
             for j in self.json_parser.parse(bytes.decode(data, 'ascii')):
-                print('PRX <-- DLV {}'.format(j))
+                log('PRX <-- DLV {}'.format(j))
                 if 'id' not in j:
                     continue
                 future: asyncio.Future = self.futures[j['id']]
