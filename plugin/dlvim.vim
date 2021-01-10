@@ -107,10 +107,10 @@ function! GetDlvimBuffer(bufnr) abort
     endif
 endfunction
 
-function! ToggleBreakpointUnderCursor(bufnr = -1) abort
+function! DlvimToggleBreakpointUnderCursor(bufnr = -1) abort
     let l:bufnr = GetDlvimBuffer(a:bufnr)
     let l:chan = getbufvar(l:bufnr, 'chan')
     call ch_evalexpr(l:chan, ['toggle_breakpoint', fnamemodify(bufname(), ':p'), line('.')])
 endfunction
 
-nnoremap <C-^>ac<C-^>b :call ToggleBreakpointUnderCursor()<Cr>
+nnoremap <C-^>ac<C-^>b :call DlvimToggleBreakpointUnderCursor()<Cr>
