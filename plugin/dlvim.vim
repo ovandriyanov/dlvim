@@ -22,7 +22,6 @@ function! s:runDlvim() abort
 endfunction
 
 function! s:cleanupDlvClientBuffer(bufnr) abort
-    echom 'DELETE BUFFER ' . a:bufnr
     call s:ClearBreakpoints()
     call s:ClearCurrentInstruction()
     let l:job = getbufvar(a:bufnr, 'job')
@@ -31,7 +30,6 @@ endfunction
 
 function! ProxyRequest(req) abort
     let l:result = ch_evalexpr(b:chan, a:req)
-    echom 'RESULT: ' . l:result
 endfunction
 
 function! s:BreakpointName(breakpoint_id, dlv_bufnr) abort
@@ -43,7 +41,6 @@ function! s:ClearBreakpoints() abort
 endfunction
 
 function! OnBreakpointsUpdated(bufnr) abort
-    "echom 'BREAKPOINTS UPDATED'
     let l:chan = getbufvar(a:bufnr, 'chan')
     let l:bufnr = winbufnr(getbufvar(a:bufnr, 'codewinid'))
 
@@ -79,7 +76,6 @@ function! s:SetCurrentInstruction(bufnr, file, line) abort
 endfunction
 
 function! OnStateUpdated(bufnr) abort
-    echom 'OnStateUpdated'
     let l:chan = getbufvar(a:bufnr, 'chan')
     let l:state = ch_evalexpr(l:chan, ['get_state'])
     if !has_key(l:state['result'], 'State') || l:state['result']['State']['Running']
