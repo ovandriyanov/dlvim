@@ -121,25 +121,25 @@ function! DlvimToggleBreakpointUnderCursor(bufnr = -1) abort
     call ch_evalexpr(l:chan, ['toggle_breakpoint', fnamemodify(bufname(), ':p'), line('.')])
 endfunction
 
-function! DlvimNext(bufnr = -1)
+function! DlvimNext(bufnr = -1) abort
     let l:bufnr = GetDlvimBuffer(a:bufnr)
     let l:chan = getbufvar(l:bufnr, 'chan')
     call ch_evalexpr(l:chan, ['next'])
 endfunction
 
-function! DlvimContinue(bufnr = -1)
+function! DlvimContinue(bufnr = -1) abort
     let l:bufnr = GetDlvimBuffer(a:bufnr)
     let l:chan = getbufvar(l:bufnr, 'chan')
     call ch_evalexpr(l:chan, ['continue'])
 endfunction
 
-function! DlvimStep(bufnr = -1)
+function! DlvimStep(bufnr = -1) abort
     let l:bufnr = GetDlvimBuffer(a:bufnr)
     let l:chan = getbufvar(l:bufnr, 'chan')
     call ch_evalexpr(l:chan, ['step'])
 endfunction
 
-function! DlvimStepOut(bufnr = -1)
+function! DlvimStepOut(bufnr = -1) abort
     let l:bufnr = GetDlvimBuffer(a:bufnr)
     let l:chan = getbufvar(l:bufnr, 'chan')
     call ch_evalexpr(l:chan, ['stepout'])
