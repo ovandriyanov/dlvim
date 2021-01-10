@@ -114,3 +114,10 @@ function! DlvimToggleBreakpointUnderCursor(bufnr = -1) abort
 endfunction
 
 nnoremap <C-^>ac<C-^>b :call DlvimToggleBreakpointUnderCursor()<Cr>
+nnoremap <C-^>ac<C-^>n :call DlvimNext()<Cr>
+nnoremap <C-^>ac<C-^>c :call DlvimContinue()<Cr>
+nnoremap <C-^>ac<C-^>s :call DlvimStep()<Cr>
+nnoremap <C-^>ac<C-^>o :call DlvimStepOut()<Cr>
+nnoremap <C-^>ac<C-^>u :call DlvimUp()<Cr>
+nnoremap <C-^>ac<C-^>d :call DlvimDown()<Cr>
+nnoremap <C-^>ac<C-^>d :call DlvimInterrupt()<Cr>
