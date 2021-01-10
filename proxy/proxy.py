@@ -119,24 +119,25 @@ def is_pc_change_command(j):
     return j['method'] == 'RPCServer.Command' and j['params'][0]['name'] in {'continue', 'next', 'step', 'stepOut'}
 
 
+async def handle_dlv_request(client_socket, vim_conn, dlv_conn, j):
+    log('CLT --> PRX {}'.format(json.dumps(j)))
+    if is_pc_change_command(j):
+        vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
+    response = await dlv_conn.request(j)
+    if j['method'] in {'RPCServer.CreateBreakpoint', 'RPCServer.ClearBreakpoint'}:
+        vim_conn.ex('call OnBreakpointsUpdated({})'.format(bufnr))
+    elif is_pc_change_command(j):
+        vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
+    response['id'] = j['id']
+    await asyncio.get_event_loop().sock_sendall(client_socket, bytes(json.dumps(response) + '\n', 'ascii'))
+    log('CLT <-- PRX {}'.format(json.dumps(response)))
+
+
 async def read_dlv_client_requests(loop, client_socket, dlv_conn, vim_conn):
     async for j in BufferedSocket(client_socket).jsons():
-        log('CLT --> PRX {}'.format(json.dumps(j)))
         if 'id' in j:
-            # Request
-            if is_pc_change_command(j):
-                vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
-            response = await dlv_conn.request(j)
-            if j['method'] in {'RPCServer.CreateBreakpoint', 'RPCServer.ClearBreakpoint'}:
-                vim_conn.ex('call OnBreakpointsUpdated({})'.format(bufnr))
-            elif is_pc_change_command(j):
-                vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
-            response['id'] = j['id']
-            await loop.sock_sendall(client_socket, bytes(json.dumps(response) + '\n', 'ascii'))
-            log('CLT <-- PRX {}'.format(json.dumps(response)))
+            loop.create_task(handle_dlv_request(client_socket, vim_conn, dlv_conn, j))
         else:
-            # Notification
-            log('Notification')
             dlv_conn.send_notification(j)
 
 
