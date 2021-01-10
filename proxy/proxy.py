@@ -75,6 +75,7 @@ async def handle_vim_requests(dlv_conn, vim_conn):
 def is_pc_change_command(j):
     return j['method'] == 'RPCServer.Command' and j['params'][0]['name'] in {'continue', 'next', 'step', 'stepOut'}
 
+
 async def read_dlv_client_requests(loop, client_socket, dlv_conn, vim_conn):
     async for j in BufferedSocket(client_socket).jsons():
         log('CLT --> PRX {}'.format(json.dumps(j)))
