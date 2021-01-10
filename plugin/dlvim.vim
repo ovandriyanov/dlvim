@@ -113,11 +113,35 @@ function! DlvimToggleBreakpointUnderCursor(bufnr = -1) abort
     call ch_evalexpr(l:chan, ['toggle_breakpoint', fnamemodify(bufname(), ':p'), line('.')])
 endfunction
 
+function! DlvimNext(bufnr = -1)
+    let l:bufnr = GetDlvimBuffer(a:bufnr)
+    let l:chan = getbufvar(l:bufnr, 'chan')
+    call ch_evalexpr(l:chan, ['next'])
+endfunction
+
+function! DlvimContinue(bufnr = -1)
+    let l:bufnr = GetDlvimBuffer(a:bufnr)
+    let l:chan = getbufvar(l:bufnr, 'chan')
+    call ch_evalexpr(l:chan, ['continue'])
+endfunction
+
+function! DlvimStep(bufnr = -1)
+    let l:bufnr = GetDlvimBuffer(a:bufnr)
+    let l:chan = getbufvar(l:bufnr, 'chan')
+    call ch_evalexpr(l:chan, ['step'])
+endfunction
+
+function! DlvimStepOut(bufnr = -1)
+    let l:bufnr = GetDlvimBuffer(a:bufnr)
+    let l:chan = getbufvar(l:bufnr, 'chan')
+    call ch_evalexpr(l:chan, ['stepout'])
+endfunction
+
 nnoremap <C-^>ac<C-^>b :call DlvimToggleBreakpointUnderCursor()<Cr>
 nnoremap <C-^>ac<C-^>n :call DlvimNext()<Cr>
 nnoremap <C-^>ac<C-^>c :call DlvimContinue()<Cr>
 nnoremap <C-^>ac<C-^>s :call DlvimStep()<Cr>
 nnoremap <C-^>ac<C-^>o :call DlvimStepOut()<Cr>
-nnoremap <C-^>ac<C-^>u :call DlvimUp()<Cr>
-nnoremap <C-^>ac<C-^>d :call DlvimDown()<Cr>
-nnoremap <C-^>ac<C-^>d :call DlvimInterrupt()<Cr>
+nnoremap <C-^>ac<C-^>k :call DlvimUp()<Cr>
+nnoremap <C-^>ac<C-^>j :call DlvimDown()<Cr>
+nnoremap <C-^>ac<C-^>i :call DlvimInterrupt()<Cr>

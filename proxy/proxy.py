@@ -77,6 +77,34 @@ async def handle_vim_requests(dlv_conn, vim_conn):
                 vim_conn.ex('call OnBreakpointsUpdated({})'.format(bufnr))
             except Exception as e:
                 future.set_result(e)
+        elif req[0] == 'next':
+            try:
+                await command(dlv_conn, 'next')
+                future.set_result(None)
+                vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
+            except Exception as e:
+                future.set_result(e)
+        elif req[0] == 'continue':
+            try:
+                await command(dlv_conn, 'continue')
+                future.set_result(None)
+                vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
+            except Exception as e:
+                future.set_result(e)
+        elif req[0] == 'step':
+            try:
+                await command(dlv_conn, 'step')
+                future.set_result(None)
+                vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
+            except Exception as e:
+                future.set_result(e)
+        elif req[0] == 'stepout':
+            try:
+                await command(dlv_conn, 'stepOut')
+                future.set_result(None)
+                vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
+            except Exception as e:
+                future.set_result(e)
 
 
 def is_pc_change_command(j):
@@ -182,6 +210,34 @@ async def toggle_breakpoint(dlv_conn, file_name, line_number):
         })
     if response['error'] is not None:
         raise result['error']
+
+
+async def command(dlv_conn, cmd):
+    return await dlv_conn.request({
+        "method": "RPCServer.Command",
+        "params": [{
+            "name": cmd,
+            "ReturnInfoLoadConfig": {
+                "FollowPointers": True,
+                "MaxVariableRecurse": 1,
+                "MaxStringLen": 64,
+                "MaxArrayValues": 64,
+                "MaxStructFields": -1
+            }
+        }],
+    })
+
+
+async def continue_execution(dlv_conn):
+    pass
+
+
+async def step(dlv_conn):
+    pass
+
+
+async def stepout(dlv_conn):
+    pass
 
 
 async def run_dlv_server():
