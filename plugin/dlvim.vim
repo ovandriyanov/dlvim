@@ -106,3 +106,11 @@ function! GetDlvimBuffer(bufnr) abort
         throw 'More than one debug is currently in process, please disambiguate the debug session by specifying a buffer number'
     endif
 endfunction
+
+function! ToggleBreakpointUnderCursor(bufnr = -1) abort
+    let l:bufnr = GetDlvimBuffer(a:bufnr)
+    let l:chan = getbufvar(l:bufnr, 'chan')
+    call ch_evalexpr(l:chan, ['toggle_breakpoint', fnamemodify(bufname(), ':p'), line('.')])
+endfunction
+
+nnoremap <C-^>ac<C-^>b :call ToggleBreakpointUnderCursor()<Cr>

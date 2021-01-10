@@ -70,6 +70,13 @@ async def handle_vim_requests(dlv_conn, vim_conn):
         elif req[0] == 'get_state':
             state = await get_state(dlv_conn)
             future.set_result(state)
+        elif req[0] == 'toggle_breakpoint':
+            try:
+                await toggle_breakpoint(dlv_conn, req[1], req[2])
+                future.set_result(None)
+                vim_conn.ex('call OnBreakpointsUpdated({})'.format(bufnr))
+            except Exception as e:
+                future.set_result(e)
 
 
 def is_pc_change_command(j):
@@ -111,6 +118,70 @@ async def get_breakpoints(dlv_conn):
 
 async def get_state(dlv_conn):
     return await dlv_conn.request({'method': 'RPCServer.State', "params": [{'NonBlocking': True}]})
+
+
+async def toggle_breakpoint(dlv_conn, file_name, line_number):
+    response = await dlv_conn.request({
+        "method": "RPCServer.FindLocation",
+        "params": [{
+            "Scope": {
+                "GoroutineID": -1,
+                "Frame": 0,
+                "DeferredCall": 0
+            },
+            "Loc": "{}:{}".format(file_name, line_number),
+            "IncludeNonExecutableLines": False,
+        }],
+    })
+
+    if response['error'] is not None:
+        raise response['error']
+    locations = response['result']['Locations']
+    if len(locations) < 1:
+        raise Exception('No locations found for line {} at file {}'.format(line_number, file_name))
+    loc = locations[0]
+
+    current_breakpoints = await get_breakpoints(dlv_conn)
+    existing_bp_id = -1
+    for bp in current_breakpoints['result']['Breakpoints']:
+        if bp['id'] < 0:
+            continue
+        if bp['file'] == file_name and bp['line'] == line_number:
+            existing_bp_id = bp['id']
+            break
+    if existing_bp_id > 0:
+        response = await dlv_conn.request({
+            "method": "RPCServer.ClearBreakpoint",
+            "params": [{
+                "Id": existing_bp_id,
+                "Name": ""
+            }],
+        })
+    else:
+        response = await dlv_conn.request({
+            "method": "RPCServer.CreateBreakpoint",
+            "params": [{
+                "Breakpoint": {
+                    "id": 0,
+                    "name": "",
+                    "addr": loc['pc'],
+                    "addrs": [ loc['pc'] ],
+                    "file": "",
+                    "line": 0,
+                    "Cond": "",
+                    "continue": False,
+                    "traceReturn": False,
+                    "goroutine": False,
+                    "stacktrace": 0,
+                    "LoadArgs": None,
+                    "LoadLocals": None,
+                    "hitCount": None,
+                    "totalHitCount": 0
+                }
+            }],
+        })
+    if response['error'] is not None:
+        raise result['error']
 
 
 async def run_dlv_server():
