@@ -176,7 +176,7 @@ async def toggle_breakpoint(dlv_conn, file_name, line_number):
     })
 
     if response['error'] is not None:
-        raise response['error']
+        raise Exception(response['error'])
     locations = response['result']['Locations']
     if len(locations) < 1:
         raise Exception('No locations found for line {} at file {}'.format(line_number, file_name))
@@ -222,7 +222,7 @@ async def toggle_breakpoint(dlv_conn, file_name, line_number):
             }],
         })
     if response['error'] is not None:
-        raise result['error']
+        raise Exception(result['error'])
 
 
 async def command(vim_conn, dlv_conn, cmd):
