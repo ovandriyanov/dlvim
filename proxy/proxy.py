@@ -61,58 +61,62 @@ async def accept_vim(listen_socket):
     return VimConnection(asyncio.get_event_loop(), client_socket)
 
 
+
+async def handle_vim_req(vim_conn, dlv_conn, req, future):
+    if req[0] == 'get_breakpoints':
+        breakpoints = await get_breakpoints(dlv_conn)
+        future.set_result(breakpoints)
+    elif req[0] == 'get_state':
+        state = await get_state(dlv_conn)
+        future.set_result(state)
+    elif req[0] == 'toggle_breakpoint':
+        try:
+            await toggle_breakpoint(dlv_conn, req[1], req[2])
+            future.set_result(None)
+            vim_conn.ex('call OnBreakpointsUpdated({})'.format(bufnr))
+        except Exception as e:
+            future.set_result(str(e))
+    elif req[0] == 'next':
+        try:
+            asyncio.get_event_loop().create_task(command(vim_conn, dlv_conn, 'next'))
+            future.set_result(None)
+            vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
+        except Exception as e:
+            future.set_result(str(e))
+    elif req[0] == 'continue':
+        try:
+            asyncio.get_event_loop().create_task(command(vim_conn, dlv_conn, 'continue'))
+            future.set_result(None)
+            vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
+        except Exception as e:
+            future.set_result(str(e))
+    elif req[0] == 'step':
+        try:
+            asyncio.get_event_loop().create_task(command(vim_conn, dlv_conn, 'step'))
+            future.set_result(None)
+            vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
+        except Exception as e:
+            future.set_result(str(e))
+    elif req[0] == 'stepout':
+        try:
+            asyncio.get_event_loop().create_task(command(vim_conn, dlv_conn, 'stepOut'))
+            future.set_result(None)
+            vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
+        except Exception as e:
+            future.set_result(str(e))
+    elif req[0] == 'eval':
+        try:
+            value = await evaluate(dlv_conn, req[1])
+            future.set_result([value, None])
+        except Exception as e:
+            log('EXCEPTION: {}'.format(e))
+            future.set_result([None, str(e)])
+
+
 async def handle_vim_requests(dlv_conn, vim_conn):
     log('Receiving vim requests...')
     async for (req, future) in vim_conn.receive_requests():
-        if req[0] == 'get_breakpoints':
-            breakpoints = await get_breakpoints(dlv_conn)
-            future.set_result(breakpoints)
-        elif req[0] == 'get_state':
-            state = await get_state(dlv_conn)
-            future.set_result(state)
-        elif req[0] == 'toggle_breakpoint':
-            try:
-                await toggle_breakpoint(dlv_conn, req[1], req[2])
-                future.set_result(None)
-                vim_conn.ex('call OnBreakpointsUpdated({})'.format(bufnr))
-            except Exception as e:
-                future.set_result(str(e))
-        elif req[0] == 'next':
-            try:
-                await command(dlv_conn, 'next')
-                future.set_result(None)
-                vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
-            except Exception as e:
-                future.set_result(str(e))
-        elif req[0] == 'continue':
-            try:
-                await command(dlv_conn, 'continue')
-                future.set_result(None)
-                vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
-            except Exception as e:
-                future.set_result(str(e))
-        elif req[0] == 'step':
-            try:
-                await command(dlv_conn, 'step')
-                future.set_result(None)
-                vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
-            except Exception as e:
-                future.set_result(str(e))
-        elif req[0] == 'stepout':
-            try:
-                await command(dlv_conn, 'stepOut')
-                future.set_result(None)
-                vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
-            except Exception as e:
-                future.set_result(str(e))
-        elif req[0] == 'eval':
-            try:
-                value = await evaluate(dlv_conn, req[1])
-                future.set_result([value, None])
-            except Exception as e:
-                log('EXCEPTION: {}'.format(e))
-                future.set_result([None, str(e)])
-
+        asyncio.get_event_loop().create_task(handle_vim_req(vim_conn, dlv_conn, req, future))
 
 
 def is_pc_change_command(j):
@@ -221,8 +225,8 @@ async def toggle_breakpoint(dlv_conn, file_name, line_number):
         raise result['error']
 
 
-async def command(dlv_conn, cmd):
-    return await dlv_conn.request({
+async def command(vim_conn, dlv_conn, cmd):
+    await dlv_conn.request({
         "method": "RPCServer.Command",
         "params": [{
             "name": cmd,
@@ -235,6 +239,7 @@ async def command(dlv_conn, cmd):
             }
         }],
     })
+    vim_conn.ex('call OnStateUpdated({})'.format(bufnr))
 
 
 async def evaluate(dlv_conn, expr):
