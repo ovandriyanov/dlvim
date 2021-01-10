@@ -83,6 +83,7 @@ function! s:SetCurrentInstruction(bufnr, file, line) abort
 
     call win_gotoid(l:codewinid)
     execute 'edit ' . a:file
+    call setbufvar(a:bufnr, 'dlvim_source_file', a:file)
     execute 'sign place 1 name=DlvimCurrentInstruction group=DlvimCurrentInstruction line=' . a:line . ' buffer=' . bufnr()
     execute a:line
     normal zz
@@ -118,7 +119,7 @@ endfunction
 function! DlvimToggleBreakpointUnderCursor(bufnr = -1) abort
     let l:bufnr = GetDlvimBuffer(a:bufnr)
     let l:chan = getbufvar(l:bufnr, 'chan')
-    call ch_evalexpr(l:chan, ['toggle_breakpoint', fnamemodify(bufname(), ':p'), line('.')])
+    call ch_evalexpr(l:chan, ['toggle_breakpoint', fnamemodify(getbufvar(l:bufnr, 'dlvim_source_file'), ':p'), line('.')])
 endfunction
 
 function! DlvimNext(bufnr = -1) abort
