@@ -119,7 +119,7 @@ endfunction
 function! DlvimToggleBreakpointUnderCursor(bufnr = -1) abort
     let l:bufnr = GetDlvimBuffer(a:bufnr)
     let l:chan = getbufvar(l:bufnr, 'chan')
-    call ch_evalexpr(l:chan, ['toggle_breakpoint', fnamemodify(getbufvar(l:bufnr, 'dlvim_source_file'), ':p'), line('.')])
+    call ch_evalexpr(l:chan, ['toggle_breakpoint', fnamemodify(getbufvar(l:bufnr, 'dlvim_source_file', bufname()), ':p'), line('.')])
 endfunction
 
 function! DlvimNext(bufnr = -1) abort
