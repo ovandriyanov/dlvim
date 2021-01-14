@@ -5,7 +5,7 @@ let s:proxy_py_path = '/home/ovandriyanov/github/ovandriyanov/dlvim/proxy/proxy.
 
 highlight CurrentInstruction ctermbg=lightblue
 sign define DlvimCurrentInstruction linehl=CurrentInstruction
-sign define DlvimBreakpoint text=⬤
+sign define DlvimBreakpoint text=●
 
 if !exists('g:DlvimBuffers')
     let g:DlvimBuffers = {}
