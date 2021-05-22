@@ -13,7 +13,7 @@ import sys
 proxy_listen_addr = ('127.0.0.1', 7777)
 vim_listen_addr = ('127.0.0.1', 7778)
 dlv_server_addr = ('127.0.0.1', 8888)
-dlv_argv = ['/home/ovandriyanov/bin/dlv', 'exec', '/home/ovandriyanov/go/src/kek/main', '--listen', '127.0.0.1:8888', '--headless']
+dlv_argv = ['/home/ovandriyanov/bin/dlv', 'exec', '/home/ovandriyanov/go/src/kek/main', '--listen', '127.0.0.1:8888', '--headless', '--accept-multiclient']
 bufnr = -1
 
 

@@ -90,7 +90,7 @@ class DlvConnection:
             self.send_queue = []
             for item in sending:
                 await self.loop.sock_sendall(self.socket, self.marshal(item))
-                log('PRX --> DLV {}'.format(item))
+                log('PRX --> DLV {}'.format(json.dumps(item)))
 
 
     async def receive_responses(self):
@@ -99,7 +99,7 @@ class DlvConnection:
             if not data:
                 return
             for j in self.json_parser.parse(bytes.decode(data, 'ascii')):
-                log('PRX <-- DLV {}'.format(j))
+                log('PRX <-- DLV {}'.format(json.dumps(j)))
                 if 'id' not in j:
                     continue
                 future: asyncio.Future = self.futures[j['id']]
