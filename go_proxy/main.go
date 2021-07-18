@@ -104,7 +104,7 @@ func startDlvServer(ctx context.Context, wg *sync.WaitGroup, startupEventCh chan
 	closePipes = false
 }
 
-func setSignalHandler(cancel func(), wg *sync.WaitGroup) {
+func setSignalHandler(ctx context.Context, cancel func(), wg *sync.WaitGroup) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	fmt.Printf("Signal handler has been set")
@@ -112,9 +112,13 @@ func setSignalHandler(cancel func(), wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		signal := <-sigCh
-		fmt.Printf("Received signal %s, exiting\n", signal)
-		cancel()
+		select {
+		case <-ctx.Done():
+			return
+		case signal := <-sigCh:
+			fmt.Printf("Received signal %s, exiting\n", signal)
+			cancel()
+		}
 	}()
 }
 
@@ -249,7 +253,7 @@ func main() {
 
 	startupEventCh := make(chan struct{})
 
-	setSignalHandler(cancel, &wg)
+	setSignalHandler(ctx, cancel, &wg)
 	startDlvServer(ctx, &wg, startupEventCh)
 	<-startupEventCh
 	setupProxyServer(ctx, &wg)
