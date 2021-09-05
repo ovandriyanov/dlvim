@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"io"
+	"log"
 	"net"
+	"net/rpc"
+	"net/rpc/jsonrpc"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -35,11 +37,11 @@ func readPipe(pipeName string, pipe io.Reader, startupEventCh chan struct{}) {
 	for {
 		nRead, err := pipe.Read(buf)
 		if err != nil {
-			fmt.Printf("Cannot read %s from DLV server: %v\n", pipeName, err)
+			log.Printf("Cannot read %s from DLV server: %v\n", pipeName, err)
 			return
 		}
 		strbuf := string(buf[:nRead])
-		fmt.Printf("DLV server %s: %s\n", pipeName, strings.ReplaceAll(strbuf, "\n", "\\n"))
+		log.Printf("DLV server %s: %s\n", pipeName, strings.ReplaceAll(strbuf, "\n", "\\n"))
 
 		if startupEventCh == nil || sentStartupEvent {
 			continue
@@ -47,7 +49,7 @@ func readPipe(pipeName string, pipe io.Reader, startupEventCh chan struct{}) {
 		if strings.Contains(strbuf, "API server listening at:") {
 			startupEventCh <- struct{}{}
 			sentStartupEvent = true
-			fmt.Printf("Startup event sent\n")
+			log.Printf("Startup event sent\n")
 		}
 	}
 }
@@ -56,7 +58,7 @@ func startDlvServer(ctx context.Context, wg *sync.WaitGroup, startupEventCh chan
 	cmd := exec.Command(
 		"/home/ovandriyanov/go/bin/dlv",
 		"exec",
-		"/home/ovandriyanov/go/src/kek/main",
+		"/home/ovandriyanov/github/ovandriyanov/dlvim/helloworld/helloworld",
 		"--listen",
 		"127.0.0.1:8888",
 		"--headless",
@@ -74,7 +76,7 @@ func startDlvServer(ctx context.Context, wg *sync.WaitGroup, startupEventCh chan
 
 	err = cmd.Start()
 	noError(err)
-	fmt.Printf("dlv server started\n")
+	log.Printf("dlv server started\n")
 
 	wg.Add(1)
 	go func() {
@@ -103,11 +105,11 @@ func startDlvServer(ctx context.Context, wg *sync.WaitGroup, startupEventCh chan
 
 		err := cmd.Process.Signal(syscall.SIGINT)
 		noError(err)
-		fmt.Printf("SIGINT sent to DLV (pid %d)\n", cmd.Process.Pid)
+		log.Printf("SIGINT sent to DLV (pid %d)\n", cmd.Process.Pid)
 
 		err = cmd.Wait()
 		noError(err)
-		fmt.Printf("DLV exited: %v\n", cmd.ProcessState)
+		log.Printf("DLV exited: %v\n", cmd.ProcessState)
 	}()
 	closePipes = false
 }
@@ -115,7 +117,7 @@ func startDlvServer(ctx context.Context, wg *sync.WaitGroup, startupEventCh chan
 func setSignalHandler(ctx context.Context, cancel func(), wg *sync.WaitGroup) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	fmt.Printf("Signal handler has been set\n")
+	log.Printf("Signal handler has been set\n")
 
 	wg.Add(1)
 	go func() {
@@ -124,7 +126,7 @@ func setSignalHandler(ctx context.Context, cancel func(), wg *sync.WaitGroup) {
 		case <-ctx.Done():
 			return
 		case signal := <-sigCh:
-			fmt.Printf("Received signal %s, exiting\n", signal)
+			log.Printf("Received signal %s, exiting\n", signal)
 			cancel()
 		}
 	}()
@@ -159,7 +161,7 @@ func acceptDlvClients(ctx context.Context, listener net.Listener) {
 			wg.Wait()
 			return
 		case conn := <-connectionsCh:
-			fmt.Printf("New DLV client connected\n")
+			log.Printf("New DLV client connected\n")
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -179,69 +181,54 @@ func relay(ctx context.Context, src, dst net.Conn, srcName, dstName string) {
 		}
 		if err != nil {
 			if err == io.EOF {
-				fmt.Printf("%s disconnected\n", srcName)
+				log.Printf("%s disconnected\n", srcName)
 			} else {
-				fmt.Printf("Cannot read data from %s: %v\n", srcName, err)
+				log.Printf("Cannot read data from %s: %v\n", srcName, err)
 			}
 			break
 		}
 		noError(err)
 		strbuf := string(buf[:nRead])
 		logData := strings.ReplaceAll(strbuf, "\n", "\\n")
-		fmt.Printf("%s -> PRX: %s\n", srcName, logData)
+		log.Printf("%s -> PRX: %s\n", srcName, logData)
 
 		_, err = dst.Write(buf[:nRead])
 		noError(err)
-		fmt.Printf("PRX -> %s: %s\n", dstName, logData)
+		log.Printf("PRX -> %s: %s\n", dstName, logData)
 	}
-	fmt.Printf("Done relaying from %s to %s\n", srcName, dstName)
+	log.Printf("Done relaying from %s to %s\n", srcName, dstName)
 }
 
 func handleDlvClient(rootCtx context.Context, clientConn net.Conn) {
 	defer clientConn.Close()
-	proxyPairCtx, cancel := context.WithCancel(context.Background())
 
 	dlvConn, err := net.Dial("tcp", "127.0.0.1:8888")
 	noError(err)
 	defer dlvConn.Close()
-	fmt.Printf("Connected to DLV at 127.0.0.1:8888\n")
+	log.Printf("Connected to DLV at 127.0.0.1:8888\n")
 
-	anyoneDoneCh := make(chan struct{})
-	notifyDone := func() {
-		select {
-		case <-proxyPairCtx.Done():
-		case anyoneDoneCh <- struct{}{}:
-		}
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(2)
+	dlvClient := jsonrpc.NewClient(dlvConn)
+	srv := rpc.NewServer()
+	srv.RegisterName(ServiceName, NewRPCHandler(dlvClient))
+	rpcDone := make(chan struct{})
 	go func() {
-		defer wg.Done()
-		relay(proxyPairCtx, dlvConn, clientConn, "DLV", "CLT")
-		notifyDone()
-	}()
-	go func() {
-		defer wg.Done()
-		relay(proxyPairCtx, clientConn, dlvConn, "CLT", "DLV")
-		notifyDone()
+		srv.ServeCodec(NewRPCCodec(clientConn, dlvClient))
+		rpcDone <- struct{}{}
 	}()
 
 	select {
+	case <-rpcDone:
+		return
 	case <-rootCtx.Done():
-		cancel()
-	case <-anyoneDoneCh:
-		cancel()
+		clientConn.Close()
+		<-rpcDone
 	}
-	clientConn.Close()
-	dlvConn.Close()
-	wg.Wait()
 }
 
 func setupProxyServer(ctx context.Context, wg *sync.WaitGroup) {
 	listener, err := net.Listen("tcp", dlvProxyAddr)
 	noError(err)
-	fmt.Printf("Proxy server is listening at %v\n", dlvProxyAddr)
+	log.Printf("Proxy server is listening at %v\n", dlvProxyAddr)
 
 	wg.Add(1)
 	go func() {
@@ -267,5 +254,5 @@ func main() {
 	setupProxyServer(ctx, &wg)
 
 	wg.Wait()
-	fmt.Printf("Exit\n")
+	log.Printf("Exit\n")
 }
