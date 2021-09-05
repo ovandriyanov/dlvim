@@ -54,7 +54,7 @@ func readPipe(pipeName string, pipe io.Reader, startupEventCh chan struct{}) {
 	}
 }
 
-func startDlvServer(ctx context.Context, wg *sync.WaitGroup, startupEventCh chan struct{}) {
+func startDlvServer(ctx context.Context, cancel func(), wg *sync.WaitGroup, startupEventCh chan struct{}) {
 	cmd := exec.Command(
 		"/home/ovandriyanov/go/bin/dlv",
 		"exec",
@@ -110,6 +110,7 @@ func startDlvServer(ctx context.Context, wg *sync.WaitGroup, startupEventCh chan
 		err = cmd.Wait()
 		noError(err)
 		log.Printf("DLV exited: %v\n", cmd.ProcessState)
+		cancel()
 	}()
 	closePipes = false
 }
@@ -222,7 +223,7 @@ func main() {
 	startupEventCh := make(chan struct{})
 
 	setSignalHandler(ctx, cancel, &wg)
-	startDlvServer(ctx, &wg, startupEventCh)
+	startDlvServer(ctx, cancel, &wg, startupEventCh)
 	<-startupEventCh
 	setupProxyServer(ctx, &wg)
 
