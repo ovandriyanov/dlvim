@@ -172,33 +172,6 @@ func acceptDlvClients(ctx context.Context, listener net.Listener) {
 	}
 }
 
-func relay(ctx context.Context, src, dst net.Conn, srcName, dstName string) {
-	buf := make([]byte, 4096)
-	for {
-		nRead, err := src.Read(buf)
-		if ctx.Err() != nil {
-			break
-		}
-		if err != nil {
-			if err == io.EOF {
-				log.Printf("%s disconnected\n", srcName)
-			} else {
-				log.Printf("Cannot read data from %s: %v\n", srcName, err)
-			}
-			break
-		}
-		noError(err)
-		strbuf := string(buf[:nRead])
-		logData := strings.ReplaceAll(strbuf, "\n", "\\n")
-		log.Printf("%s -> PRX: %s\n", srcName, logData)
-
-		_, err = dst.Write(buf[:nRead])
-		noError(err)
-		log.Printf("PRX -> %s: %s\n", dstName, logData)
-	}
-	log.Printf("Done relaying from %s to %s\n", srcName, dstName)
-}
-
 func handleDlvClient(rootCtx context.Context, clientConn net.Conn) {
 	defer clientConn.Close()
 
