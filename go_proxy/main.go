@@ -54,7 +54,7 @@ func readPipe(pipeName string, pipe io.Reader, startupEventCh chan struct{}) {
 
 func startDlvServer(ctx context.Context, wg *sync.WaitGroup, startupEventCh chan struct{}) {
 	cmd := exec.Command(
-		"/home/ovandriyanov/bin/dlv",
+		"/home/ovandriyanov/go/bin/dlv",
 		"exec",
 		"/home/ovandriyanov/go/src/kek/main",
 		"--listen",
@@ -90,8 +90,16 @@ func startDlvServer(ctx context.Context, wg *sync.WaitGroup, startupEventCh chan
 			defer pipeWg.Done()
 			readPipe("stderr", stderr, nil)
 		}()
+		pipesClosed := make(chan struct{})
+		go func() {
+			pipeWg.Wait()
+			pipesClosed <- struct{}{}
+		}()
 
-		<-ctx.Done()
+		select {
+		case <-ctx.Done():
+		case <-pipesClosed:
+		}
 
 		err := cmd.Process.Signal(syscall.SIGINT)
 		noError(err)
@@ -107,7 +115,7 @@ func startDlvServer(ctx context.Context, wg *sync.WaitGroup, startupEventCh chan
 func setSignalHandler(ctx context.Context, cancel func(), wg *sync.WaitGroup) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	fmt.Printf("Signal handler has been set")
+	fmt.Printf("Signal handler has been set\n")
 
 	wg.Add(1)
 	go func() {
