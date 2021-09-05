@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/rpc"
@@ -11,6 +12,8 @@ import (
 const ServiceName = "RPCServer"
 
 var KnownMethods map[string]struct{}
+
+var debugRPC = flag.Bool("debug-rpc", false, "Show full requests and responses sent between dlv and the proxy")
 
 func fqmn(method string) string {
 	return fmt.Sprintf("%s.%s", ServiceName, method)
@@ -42,14 +45,18 @@ func (h *RPCHandler) SetApiVersion(req map[string]interface{}, resp *map[string]
 }
 
 func (h *RPCHandler) defaultHandler(method string, req map[string]interface{}, resp *map[string]interface{}) error {
-	jsonReq, _ := json.MarshalIndent(req, "", "    ")
-	log.Printf("Request: %s\n", jsonReq)
+	if *debugRPC {
+		jsonReq, _ := json.MarshalIndent(req, "", "    ")
+		log.Printf("Request: %s\n", jsonReq)
+	}
 	err := h.dlvClient.Call(method, req, resp)
 	if err != nil {
 		log.Printf("Error: %v\n", err)
 	}
-	jsonResp, _ := json.MarshalIndent(resp, "", "    ")
-	log.Printf("Response: %s\n", jsonResp)
+	if *debugRPC {
+		jsonResp, _ := json.MarshalIndent(resp, "", "    ")
+		log.Printf("Response: %s\n", jsonResp)
+	}
 	return err
 }
 

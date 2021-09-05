@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"io"
 	"log"
 	"net"
@@ -212,6 +213,7 @@ func setupProxyServer(ctx context.Context, wg *sync.WaitGroup) {
 }
 
 func main() {
+	flag.Parse()
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 	defer func() {
