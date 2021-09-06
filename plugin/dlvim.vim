@@ -24,7 +24,7 @@ function! s:runDlvim() abort
 
     let l:job = job_start(s:proxy_py_path, {'mode': 'json', 'err_io': 'buffer', 'err_name': l:log_bufname})
     call ch_evalexpr(l:job, ['init', l:sessionID])
-    let l:chan = ch_open('127.0.0.1:7778', {'mode': 'json'})
+    let l:chan = ch_open('localhost:7778', {'mode': 'json'})
     let w:job = l:job
     let w:chan = l:chan
     let w:codewinid = l:codewinid
