@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
+	"io"
 	"log"
 	"net"
 	"net/rpc"
 	"net/rpc/jsonrpc"
 )
 
-func handleProxyClient(rootCtx context.Context, clientConn net.Conn) {
+func handleProxyClient(rootCtx context.Context, clientConn io.ReadWriteCloser) {
 	defer clientConn.Close()
 
 	dlvConn, err := net.Dial("tcp", dlvListenAddr)

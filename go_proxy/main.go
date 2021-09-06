@@ -28,11 +28,17 @@ func main() {
 
 	startupEventCh := make(chan struct{})
 
-	setSignalHandler(ctx, cancel, &wg)
 	startDlv(ctx, cancel, &wg, startupEventCh)
 	<-startupEventCh
 	setupServer(ctx, &wg, "Proxy", dlvProxyAddr, handleProxyClient)
 	setupServer(ctx, &wg, "Vim", vimServerAddr, handleVimClient)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		handleVimClient(ctx, NewStdioConn())
+		cancel()
+	}()
+	setSignalHandler(ctx, cancel, &wg)
 	close(initialized)
 
 	wg.Wait()

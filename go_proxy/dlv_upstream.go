@@ -80,7 +80,7 @@ func startDlv(ctx context.Context, cancel func(), wg *sync.WaitGroup, startupEve
 		pipesClosed := make(chan struct{})
 		go func() {
 			pipeWg.Wait()
-			pipesClosed <- struct{}{}
+			close(pipesClosed)
 		}()
 
 		select {
@@ -95,6 +95,7 @@ func startDlv(ctx context.Context, cancel func(), wg *sync.WaitGroup, startupEve
 		err = cmd.Wait()
 		noError(err)
 		log.Printf("DLV exited: %v\n", cmd.ProcessState)
+		<-pipesClosed
 		cancel()
 	}()
 	closePipes = false

@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
+	"io"
 	"log"
 	"net"
 	"sync"
 )
 
-type clientHandler func(rootCtx context.Context, clientConn net.Conn)
+type clientHandler func(rootCtx context.Context, clientConn io.ReadWriteCloser)
 
 func acceptClients(ctx context.Context, listener net.Listener, name string, handler clientHandler) {
 	defer listener.Close()
@@ -42,9 +43,8 @@ func acceptClients(ctx context.Context, listener net.Listener, name string, hand
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				handleProxyClient(ctx, conn)
+				handler(ctx, conn)
 			}()
-
 		}
 	}
 }
