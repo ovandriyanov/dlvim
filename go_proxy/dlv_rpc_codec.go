@@ -9,13 +9,13 @@ import (
 	"golang.org/x/xerrors"
 )
 
-type loggingServerCodec struct {
+type dlvRPCCodec struct {
 	rpc.ServerCodec
 
 	dlvClient *rpc.Client
 }
 
-func (c *loggingServerCodec) Close() (resultErr error) {
+func (c *dlvRPCCodec) Close() (resultErr error) {
 	if err := c.dlvClient.Close(); err != nil {
 		resultErr = xerrors.Errorf("cannot close dlv client: %v", err)
 	}
@@ -25,7 +25,7 @@ func (c *loggingServerCodec) Close() (resultErr error) {
 	return
 }
 
-func (c *loggingServerCodec) ReadRequestHeader(request *rpc.Request) error {
+func (c *dlvRPCCodec) ReadRequestHeader(request *rpc.Request) error {
 	err := c.ServerCodec.ReadRequestHeader(request)
 	if err != nil {
 		log.Printf("Cannot read request header: %v\n", err)
@@ -39,7 +39,7 @@ func (c *loggingServerCodec) ReadRequestHeader(request *rpc.Request) error {
 }
 
 func NewRPCCodec(conn io.ReadWriteCloser, dlvClient *rpc.Client) rpc.ServerCodec {
-	return &loggingServerCodec{
+	return &dlvRPCCodec{
 		ServerCodec: jsonrpc.NewServerCodec(conn),
 		dlvClient:   dlvClient,
 	}
