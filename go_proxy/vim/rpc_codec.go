@@ -84,7 +84,7 @@ func (v *VimRPCCodec) WriteResponse(response *rpc.Response, body interface{}) er
 
 	responseMessage := [2]interface{}{response.Seq, responseBody}
 	if err := v.encoder.Encode(responseMessage); err != nil {
-		return xerrors.Errorf("%s: cannot encode respone message of type %T: %w", response.ServiceMethod, body, err)
+		return xerrors.Errorf("%s: cannot encode response message of type %T: %w", response.ServiceMethod, body, err)
 	}
 	return nil
 }
