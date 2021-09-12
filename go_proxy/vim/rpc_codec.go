@@ -1,6 +1,7 @@
 package vim
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,71 +11,97 @@ import (
 	"golang.org/x/xerrors"
 )
 
-type VimRPCCodec struct {
+type RPCCodec struct {
 	vimConn        io.ReadWriteCloser
 	decoder        *json.Decoder
 	encoder        *json.Encoder
-	methodName     string
-	requestMessage json.RawMessage
+	requestMessage requestMessage
 }
 
-func (v *VimRPCCodec) Close() error {
+func (v *RPCCodec) Close() error {
 	return v.vimConn.Close()
 }
 
-var k json.Unmarshaler
+type requestMessage struct {
+	seq     uint64
+	method  string
+	payload json.RawMessage
+}
 
-func (v *VimRPCCodec) ReadRequestHeader(request *rpc.Request) (err error) {
+func (m *requestMessage) delim(decoder *json.Decoder, delim json.Delim) error {
+	tok, err := decoder.Token()
+	if err != nil {
+		return err
+	}
+	if tok != delim {
+		return xerrors.Errorf("Expected %c, got %v", delim, tok)
+	}
+	return nil
+}
+
+func (m *requestMessage) UnmarshalJSON(data []byte) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	if err := m.delim(decoder, '['); err != nil {
+		return xerrors.Errorf("Request array: %w", err)
+	}
+	if err := decoder.Decode(&m.seq); err != nil {
+		return xerrors.Errorf("Request sequence number: %w", err)
+	}
+	if err := m.delim(decoder, '['); err != nil {
+		return xerrors.Errorf("Payload array: %w", err)
+	}
+	if err := decoder.Decode(&m.method); err != nil {
+		return xerrors.Errorf("Method name: %w", err)
+	}
+	if err := decoder.Decode(&m.payload); err != nil {
+		return xerrors.Errorf("Payload: %w", err)
+	}
+	if err := m.delim(decoder, ']'); err != nil {
+		return xerrors.Errorf("Payload array: %w", err)
+	}
+	if err := m.delim(decoder, ']'); err != nil {
+		return xerrors.Errorf("Request array: %w", err)
+	}
+	return nil
+}
+
+func (v *RPCCodec) ReadRequestHeader(request *rpc.Request) (err error) {
 	defer func() {
 		if err != nil {
 			log.Printf("Cannot read request header: %s\n", err.Error())
 		}
 	}()
 
-	var methodName *string
-	var requestMessage *json.RawMessage
-	req := [2]interface{}{methodName, requestMessage}
-
-	var reqID *uint64
-	message := [2]interface{}{reqID, &req}
-
-	if err = v.decoder.Decode(&message); err != nil {
-		err = xerrors.Errorf("Request decoding failed: %w", err)
+	if err = v.decoder.Decode(&v.requestMessage); err != nil {
+		err = xerrors.Errorf("Cannot decode request message: %w", err)
 		return
 	}
 
-	if reqID == nil {
-		err = xerrors.New("Request ID not provided")
-	}
-
-	if methodName == nil {
-		err = xerrors.New("Method name not provided")
-	}
-	v.methodName = *methodName
-
-	if requestMessage == nil {
-		v.requestMessage = []byte("null")
-	} else {
-		v.requestMessage = *requestMessage
-	}
-
-	log.Printf("Dlvim method called: %s\n", v.methodName)
-	request.ServiceMethod = fmt.Sprintf("Dlvim.%s", v.methodName)
-	request.Seq = *reqID
+	request.ServiceMethod = fmt.Sprintf("Dlvim.%s", v.requestMessage.method)
+	request.Seq = v.requestMessage.seq
 	return
 }
 
-func (v *VimRPCCodec) ReadRequestBody(body interface{}) error {
+func (v *RPCCodec) ReadRequestBody(body interface{}) (err error) {
+	defer func() {
+		if err != nil {
+			log.Printf("Cannot read request body for method %s (seq %d): %s\n", v.requestMessage.method, v.requestMessage.seq, err.Error())
+			return
+		}
+		log.Printf("Vim: call %s with argument %v\n", v.requestMessage.method, body)
+	}()
 	if body == nil {
-		return nil
+		return
 	}
-	if err := json.Unmarshal(v.requestMessage, body); err != nil {
-		return xerrors.Errorf("%s: cannot unmarshal request message into %T: %w", v.methodName, body, err)
+	if err = json.Unmarshal(v.requestMessage.payload, body); err != nil {
+		err = xerrors.Errorf("%s (seq %d): cannot unmarshal request message into %T: %w", v.requestMessage.method, v.requestMessage.seq, body, err)
+		return
 	}
-	return nil
+	return
 }
 
-func (v *VimRPCCodec) WriteResponse(response *rpc.Response, body interface{}) error {
+func (v *RPCCodec) WriteResponse(response *rpc.Response, body interface{}) error {
 	var responseBody interface{}
 	if response.Error != "" {
 		responseBody = map[string]string{"Error": response.Error}
@@ -89,11 +116,11 @@ func (v *VimRPCCodec) WriteResponse(response *rpc.Response, body interface{}) er
 	return nil
 }
 
-func NewVimRPCCodec(vimConn io.ReadWriteCloser) VimRPCCodec {
+func NewRPCCodec(vimConn io.ReadWriteCloser) *RPCCodec {
 	decoder := json.NewDecoder(vimConn)
 	decoder.UseNumber()
 	encoder := json.NewEncoder(vimConn)
-	return VimRPCCodec{
+	return &RPCCodec{
 		vimConn: vimConn,
 		decoder: decoder,
 		encoder: encoder,
