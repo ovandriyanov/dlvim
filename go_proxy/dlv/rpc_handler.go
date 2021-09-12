@@ -1,4 +1,4 @@
-package main
+package dlv
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 	"reflect"
 )
 
-const ServiceName = "RPCServer"
+const ServiceName = "RPCServer" // Dlv client expects that service name
 
 var KnownMethods map[string]struct{}
 
@@ -33,15 +33,6 @@ func init() {
 
 type RPCHandler struct {
 	dlvClient *rpc.Client
-}
-
-func (h *RPCHandler) Foo(req map[string]interface{}, resp *map[string]interface{}) error {
-	*resp = make(map[string]interface{})
-	return nil
-}
-
-func (h *RPCHandler) SetApiVersion(req map[string]interface{}, resp *map[string]interface{}) error {
-	return h.defaultHandler(fqmn("SetApiVersion"), req, resp)
 }
 
 func (h *RPCHandler) defaultHandler(method string, req map[string]interface{}, resp *map[string]interface{}) error {

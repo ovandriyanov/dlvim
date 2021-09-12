@@ -3,8 +3,13 @@ package main
 import (
 	"context"
 	"flag"
+	"io"
 	"log"
 	"sync"
+
+	"github.com/ovandriyanov/dlvim/go_proxy/common"
+	"github.com/ovandriyanov/dlvim/go_proxy/dlv"
+	"github.com/ovandriyanov/dlvim/go_proxy/vim"
 )
 
 const (
@@ -12,8 +17,6 @@ const (
 	dlvListenAddr = "localhost:8888"
 	vimServerAddr = "localhost:7778"
 )
-
-var initialized = make(chan struct{})
 
 func main() {
 	flag.Parse()
@@ -26,21 +29,20 @@ func main() {
 		wg.Wait()
 	}()
 
-	startupEventCh := make(chan struct{})
+	dlv.StartDlv(ctx, cancel, &wg, dlvListenAddr)
+	common.SetupServer(ctx, &wg, "DlvProxy", dlvProxyAddr, func(rootCtx context.Context, clientConn io.ReadWriteCloser) {
+		dlv.HandleClient(rootCtx, clientConn, dlvListenAddr)
+	})
+	common.SetupServer(ctx, &wg, "Vim", vimServerAddr, vim.HandleClient)
 
-	startDlv(ctx, cancel, &wg, startupEventCh)
-	<-startupEventCh
-	setupServer(ctx, &wg, "Proxy", dlvProxyAddr, handleProxyClient)
-	setupServer(ctx, &wg, "Vim", vimServerAddr, handleVimClient)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		handleVimClient(ctx, NewStdioConn())
+		vim.HandleClient(ctx, common.NewStdioConn())
 		cancel()
 	}()
-	setSignalHandler(ctx, cancel, &wg)
-	close(initialized)
+	common.SetSignalHandler(ctx, cancel, &wg)
 
 	wg.Wait()
-	log.Printf("Exit\n")
+	log.Println("Exit")
 }

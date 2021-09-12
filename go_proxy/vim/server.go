@@ -1,17 +1,20 @@
-package main
+package vim
 
 import (
 	"context"
 	"encoding/json"
 	"io"
 	"log"
+	"net/rpc"
 )
 
-func handleVimClient(rootCtx context.Context, clientConn io.ReadWriteCloser) {
+func HandleClient(rootCtx context.Context, clientConn io.ReadWriteCloser) {
 	defer clientConn.Close()
 
 	ipcDone := make(chan struct{})
 
+	srv := rpc.NewServer()
+	srv.RegisterName(ServiceName, NewRPCHandler())
 	go func() {
 		decoder := json.NewDecoder(clientConn)
 		for {

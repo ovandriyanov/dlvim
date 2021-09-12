@@ -1,4 +1,4 @@
-package main
+package dlv
 
 import (
 	"context"
@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+
+	"github.com/ovandriyanov/dlvim/go_proxy/common"
 )
 
 func readPipe(pipeName string, pipe io.Reader, startupEventCh chan struct{}) {
@@ -16,11 +18,11 @@ func readPipe(pipeName string, pipe io.Reader, startupEventCh chan struct{}) {
 	for {
 		nRead, err := pipe.Read(buf)
 		if err != nil {
-			log.Printf("Cannot read %s from DLV server: %v\n", pipeName, err)
+			log.Printf("Cannot read %s from Dlv server: %v\n", pipeName, err)
 			return
 		}
 		strbuf := string(buf[:nRead])
-		log.Printf("DLV server %s: %s\n", pipeName, strings.ReplaceAll(strbuf, "\n", "\\n"))
+		log.Printf("Dlv server %s: %s\n", pipeName, strings.ReplaceAll(strbuf, "\n", "\\n"))
 
 		if startupEventCh == nil || sentStartupEvent {
 			continue
@@ -39,7 +41,7 @@ func callIf(f func() error, condition *bool) {
 	}
 }
 
-func startDlv(ctx context.Context, cancel func(), wg *sync.WaitGroup, startupEventCh chan struct{}) {
+func StartDlv(ctx context.Context, cancel func(), wg *sync.WaitGroup, dlvListenAddr string) {
 	cmd := exec.Command(
 		"/home/ovandriyanov/go/bin/dlv",
 		"exec",
@@ -52,17 +54,18 @@ func startDlv(ctx context.Context, cancel func(), wg *sync.WaitGroup, startupEve
 	closePipes := true
 
 	stdout, err := cmd.StdoutPipe()
-	noError(err)
+	common.NoError(err)
 	defer callIf(stdout.Close, &closePipes)
 
 	stderr, err := cmd.StderrPipe()
-	noError(err)
+	common.NoError(err)
 	defer callIf(stderr.Close, &closePipes)
 
 	err = cmd.Start()
-	noError(err)
+	common.NoError(err)
 	log.Printf("dlv server started\n")
 
+	startupEventCh := make(chan struct{})
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -89,14 +92,19 @@ func startDlv(ctx context.Context, cancel func(), wg *sync.WaitGroup, startupEve
 		}
 
 		err := cmd.Process.Signal(syscall.SIGINT)
-		noError(err)
-		log.Printf("SIGINT sent to DLV (pid %d)\n", cmd.Process.Pid)
+		common.NoError(err)
+		log.Printf("SIGINT sent to Dlv (pid %d)\n", cmd.Process.Pid)
 
 		err = cmd.Wait()
-		noError(err)
-		log.Printf("DLV exited: %v\n", cmd.ProcessState)
+		common.NoError(err)
+		log.Printf("Dlv exited: %v\n", cmd.ProcessState)
 		<-pipesClosed
 		cancel()
 	}()
 	closePipes = false
+
+	select {
+	case <-startupEventCh:
+	case <-ctx.Done():
+	}
 }

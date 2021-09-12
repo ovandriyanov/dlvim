@@ -1,4 +1,4 @@
-package main
+package common
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"syscall"
 )
 
-func setSignalHandler(ctx context.Context, cancel func(), wg *sync.WaitGroup) {
+func SetSignalHandler(ctx context.Context, cancel func(), wg *sync.WaitGroup) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	log.Printf("Signal handler has been set\n")

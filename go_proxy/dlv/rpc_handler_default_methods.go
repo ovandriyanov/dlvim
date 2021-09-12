@@ -1,4 +1,8 @@
-package main
+package dlv
+
+func (h *RPCHandler) SetApiVersion(req map[string]interface{}, resp *map[string]interface{}) error {
+	return h.defaultHandler(fqmn("SetApiVersion"), req, resp)
+}
 
 func (h *RPCHandler) IsMulticlient(req map[string]interface{}, resp *map[string]interface{}) error {
 	return h.defaultHandler(fqmn("IsMulticlient"), req, resp)

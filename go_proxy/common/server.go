@@ -1,4 +1,4 @@
-package main
+package common
 
 import (
 	"context"
@@ -22,7 +22,7 @@ func acceptClients(ctx context.Context, listener net.Listener, name string, hand
 		for {
 			conn, err := listener.Accept()
 			if ctx.Err() == nil {
-				noError(err)
+				NoError(err)
 			}
 			select {
 			case connectionsCh <- conn:
@@ -49,9 +49,9 @@ func acceptClients(ctx context.Context, listener net.Listener, name string, hand
 	}
 }
 
-func setupServer(ctx context.Context, wg *sync.WaitGroup, name, addr string, handler clientHandler) {
+func SetupServer(ctx context.Context, wg *sync.WaitGroup, name, addr string, handler clientHandler) {
 	listener, err := net.Listen("tcp", addr)
-	noError(err)
+	NoError(err)
 	log.Printf("%s server is listening at %v\n", name, addr)
 
 	wg.Add(1)
