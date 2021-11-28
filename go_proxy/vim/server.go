@@ -6,7 +6,7 @@ import (
 	"net/rpc"
 )
 
-func HandleClient(rootCtx context.Context, clientConn io.ReadWriteCloser) {
+func HandleClient(ctx context.Context, clientConn io.ReadWriteCloser) {
 	defer clientConn.Close()
 
 	rpcDone := make(chan struct{})
@@ -20,7 +20,7 @@ func HandleClient(rootCtx context.Context, clientConn io.ReadWriteCloser) {
 	select {
 	case <-rpcDone:
 		return
-	case <-rootCtx.Done():
+	case <-ctx.Done():
 		_ = clientConn.Close()
 		<-rpcDone
 		return
