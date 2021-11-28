@@ -31,9 +31,9 @@ function! s:dlvim_window_status_line(dlvim_window_id)
     let l:status_line = '%#StatusLine#'
     let l:status_line ..= 'Dlvim ['
     let l:status_line ..= ' ' .. join(s:format_subtabs_for_status_line(a:dlvim_window_id), ' | ')
-    let l:status_line ..= ']'
+    let l:status_line ..= '] '
     let l:status_line ..= '%#StatusLineNC#'
-    let l:status_line ..= ' (select with C-l or C-h)'
+    let l:status_line ..= '(select with C-l or C-h)'
     let l:status_line ..= '%#StatusLine#'
     return l:status_line
 endfunction
