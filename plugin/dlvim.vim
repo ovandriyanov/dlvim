@@ -1,4 +1,4 @@
-command! Dlvim call s:runDlvim()
+command! Dlvim call s:run_dlvim()
 
 let s:proxy_py_path = '/home/ovandriyanov/github/ovandriyanov/dlvim/proxy/proxy.py'
 "let s:proxy_py_path = ['bash', '-c', 'while true; do sleep 5; echo kek; done']
@@ -7,28 +7,87 @@ highlight CurrentInstruction ctermbg=lightblue
 sign define DlvimCurrentInstruction linehl=CurrentInstruction
 sign define DlvimBreakpoint text=●
 
-if !exists('g:DlvimSessions')
-    let g:DlvimSessions = {} " window number -> session info
-endif
+let s:subtab_names = [
+    \ 'breakpoints',
+    \ 'stack',
+    \ 'log',
+\ ]
 
-function! s:runDlvim() abort
-    let l:codewinid = win_getid()
+function! s:format_subtabs_for_status_line(dlvim_window_id)
+    let l:formatted_subtab_names = []
+    for l:subtab_name in s:subtab_names
+        let l:current_subtab = getwinvar(a:dlvim_window_id, 'dlvim_current_subtab')
+        if l:current_subtab ==# l:subtab_name
+            let l:formatted_subtab_name = '%#ModeMsg#' .. l:subtab_name .. '%#StatusLine#'
+        else
+            let l:formatted_subtab_name = l:subtab_name
+        endif
+        let l:formatted_subtab_names = add(l:formatted_subtab_names, l:formatted_subtab_name)
+    endfor
+    return l:formatted_subtab_names
+endfunction
+
+function! s:dlvim_window_status_line(dlvim_window_id)
+    let l:status_line = '%#StatusLine#'
+    let l:status_line ..= 'Dlvim ['
+    let l:status_line ..= ' ' .. join(s:format_subtabs_for_status_line(a:dlvim_window_id), ' | ')
+    let l:status_line ..= ']'
+    let l:status_line ..= '%#StatusLineNC#'
+    let l:status_line ..= ' (select with C-l or C-h)'
+    let l:status_line ..= '%#StatusLine#'
+    return l:status_line
+endfunction
+
+function! s:setup_dlvim_window_options(dlvim_window_id)
+    call win_execute(a:dlvim_window_id, 'setlocal nonumber')
+    call win_execute(a:dlvim_window_id, 'setlocal norelativenumber')
+    call win_execute(a:dlvim_window_id, 'resize 10')
+    call win_execute(a:dlvim_window_id, 'set winfixheight')
+
+    let l:status_line_expr = expand('<SID>') .. 'dlvim_window_status_line(' .. a:dlvim_window_id .. ')'
+    call win_execute(a:dlvim_window_id, 'setlocal statusline=%!' .. l:status_line_expr)
+endfunction
+
+function! s:setup_dlvim_window_variables(dlvim_window_id)
+    call setwinvar(a:dlvim_window_id, 'dlvim_current_subtab', s:subtab_names[0])
+endfunction
+
+function! s:setup_dlvim_window(dlvim_window_id)
+    call s:setup_dlvim_window_options(a:dlvim_window_id)
+    call s:setup_dlvim_window_variables(a:dlvim_window_id)
+endfunction
+
+function! s:allocate_dlvim_window()
+    let l:previous_window_id = win_getid()
     rightbelow new
-    let w:dlvim = 1
+    let l:dlvim_window_id = win_getid()
+    call win_gotoid(l:previous_window_id)
 
-    let l:sessionID = win_getid()
+    return l:dlvim_window_id
+endfunction
 
-    let l:log_bufname = 'dlvim' . l:sessionID . '_log'
-    execute 'edit ' . l:log_bufname
-    set bufhidden=hide
+function! s:setup_tab_variables(code_window_id, dlvim_window_id)
+    let t:dlvim_code_window_id = a:code_window_id
+    let t:dlvim_main_window_id = a:dlvim_window_id
+endfunction
 
-    let l:job = job_start(s:proxy_py_path, {'mode': 'json', 'err_io': 'buffer', 'err_name': l:log_bufname})
-    call ch_evalexpr(l:job, ['init', l:sessionID])
-    let l:chan = ch_open('localhost:7778', {'mode': 'json'})
-    let w:job = l:job
-    let w:chan = l:chan
-    let w:codewinid = l:codewinid
-    let g:DlvimSessions[l:sessionID] = v:null
+function! s:run_dlvim() abort
+    let l:code_window_id = win_getid()
+    let l:dlvim_window_id = s:allocate_dlvim_window()
+    call s:setup_tab_variables(l:code_window_id, l:dlvim_window_id)
+    call s:setup_dlvim_window(l:dlvim_window_id)
+
+    " let l:log_bufname = 'dlvim' . l:sessionID . '_log'
+    " execute 'edit ' . l:log_bufname
+    " set bufhidden=hide
+
+    " let l:job = job_start(s:proxy_py_path, {'mode': 'json', 'err_io': 'buffer', 'err_name': l:log_bufname})
+    " call ch_evalexpr(l:job, ['init', l:sessionID])
+    " let l:chan = ch_open('localhost:7778', {'mode': 'json'})
+    " let w:job = l:job
+    " let w:chan = l:chan
+    " let w:codewinid = l:codewinid
+    " let g:DlvimSessions[l:sessionID] = v:null
 endfunction
 
 function! s:getSessionVariable(sessionID, varname, default = 0) abort
