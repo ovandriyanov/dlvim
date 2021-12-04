@@ -7,6 +7,21 @@ highlight CurrentInstruction ctermbg=lightblue
 sign define DlvimCurrentInstruction linehl=CurrentInstruction
 sign define DlvimBreakpoint text=●
 
+function! s:create_buffer(subtab_name, session) abort
+    let l:buffer_name = s:uniqualize_name(a:session.id, a:subtab_name)
+    execute 'badd' l:buffer_name
+    let l:bufnr = bufnr(l:buffer_name)
+    call s:setup_subtab_buffer(l:bufnr, a:session, a:subtab_name)
+    return l:bufnr
+endfunction
+
+function! s:create_terminal(subtab_name, session) abort
+    let l:buffer_name = s:uniqualize_name(a:session.id, a:subtab_name)
+    terminal ++curwin
+    call s:setup_subtab_buffer(bufnr(), a:session, a:subtab_name)
+    return bufnr()
+endfunction
+
 let s:subtabs = {
     \ 'breakpoints': {
         \ 'index': 0,
@@ -18,7 +33,7 @@ let s:subtabs = {
     \ },
     \ 'log': {
         \ 'index': 2,
-        \ 'create_buffer': function(funcref(expand('<SID>') .. 'create_buffer'), ['log']),
+        \ 'create_buffer': function(funcref(expand('<SID>') .. 'create_terminal'), ['log']),
     \ },
 \ }
 
@@ -80,16 +95,10 @@ function! s:setup_subtab_buffer(bufnr, session, subtab_name) abort
     let l:rotate_subtab_function_name = expand('<SID>') .. 'rotate_subtab'
     execute a:bufnr .. 'bufdo' printf('nnoremap <buffer> <C-l> :call %s("right")<Cr>', l:rotate_subtab_function_name)
     execute a:bufnr .. 'bufdo' printf('nnoremap <buffer> <C-h> :call %s("left" )<Cr>', l:rotate_subtab_function_name)
+    execute a:bufnr .. 'bufdo' printf('tnoremap <buffer> <C-l> <C-^>:call %s("right")<Cr>', l:rotate_subtab_function_name)
+    execute a:bufnr .. 'bufdo' printf('tnoremap <buffer> <C-h> <C-^>:call %s("left" )<Cr>', l:rotate_subtab_function_name)
     let l:status_line_expr = '%{%' .. expand('<SID>') .. 'dlvim_window_status_line()' .. '%}'
     execute printf('setlocal statusline=%s', l:status_line_expr)
-endfunction
-
-function! s:create_buffer(subtab_name, session) abort
-    let l:buffer_name = s:uniqualize_name(a:session.id, a:subtab_name)
-    execute 'badd' l:buffer_name
-    let l:bufnr = bufnr(l:buffer_name)
-    call s:setup_subtab_buffer(l:bufnr, a:session, a:subtab_name)
-    return l:bufnr
 endfunction
 
 function! s:uniqualize_name(session_id, name) abort
