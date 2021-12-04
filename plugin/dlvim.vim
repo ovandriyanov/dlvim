@@ -99,7 +99,7 @@ endfunction
 
 function! s:setup_tab_variables(code_window_id, dlvim_window_id)
     let t:dlvim_code_window_id = a:code_window_id
-    let t:dlvim_main_window_id = a:dlvim_window_id
+    let t:dlvim_window_id = a:dlvim_window_id
 endfunction
 
 function! s:run_dlvim() abort
