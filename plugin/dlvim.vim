@@ -47,9 +47,21 @@ function! s:setup_dlvim_window_options(dlvim_window_id)
     call win_execute(a:dlvim_window_id, 'setlocal norelativenumber')
     call win_execute(a:dlvim_window_id, 'resize 10')
     call win_execute(a:dlvim_window_id, 'set winfixheight')
+endfunction
 
-    let l:status_line_expr = expand('<SID>') .. 'dlvim_window_status_line(' .. a:dlvim_window_id .. ')'
-    call win_execute(a:dlvim_window_id, 'setlocal statusline=%!' .. l:status_line_expr)
+function! s:get_next_subtab_name(current_subtab_name, direction)
+    let l:subtab_index = index(s:subtab_names, a:current_subtab_name)
+    let l:offset = a:direction ==# 'right' ? 1 : -1
+    let l:next_subtab_index = (l:subtab_index + l:offset) % len(s:subtab_names)
+    return s:subtab_names[l:next_subtab_index]
+endfunction
+
+function! s:rotate_subtab(dlvim_window_id, direction)
+    let l:bufnr = winbufnr(a:dlvim_window_id)
+    let l:current_subtab_name = getbufvar(l:bufnr, 'dlvim_subtab_name')
+    let l:next_subtab_name = s:get_next_subtab_name(l:current_subtab_name, a:direction)
+    let l:next_bufnr = getwinvar(a:dlvim_window_id, 'dlvim_buffers')[l:next_subtab_name]
+    call win_execute(a:dlvim_window_id, printf('buffer %d', l:next_bufnr))
 endfunction
 
 function! s:setup_subtab_buffer(bufnr, subtab_name, dlvim_window_id)
@@ -57,6 +69,15 @@ function! s:setup_subtab_buffer(bufnr, subtab_name, dlvim_window_id)
     call setbufvar(a:bufnr, '&buftype', 'nofile')
     call setbufvar(a:bufnr, 'dlvim_window_id', a:dlvim_window_id)
     call setbufvar(a:bufnr, 'dlvim_subtab_name', a:subtab_name)
+
+    let l:previous_window_id = win_getid()
+    call win_gotoid(a:dlvim_window_id)
+    let l:rotate_subtab_function_name = expand('<SID>') .. 'rotate_subtab'
+    execute a:bufnr .. 'bufdo' printf('nnoremap <buffer> <C-l> :call %s(%d, "right")<Cr>', l:rotate_subtab_function_name, a:dlvim_window_id)
+    execute a:bufnr .. 'bufdo' printf('nnoremap <buffer> <C-h> :call %s(%d, "left" )<Cr>', l:rotate_subtab_function_name, a:dlvim_window_id)
+    let l:status_line_expr = expand('<SID>') .. 'dlvim_window_status_line(' .. a:dlvim_window_id .. ')'
+    call win_execute(a:dlvim_window_id, 'setlocal statusline=%!' .. l:status_line_expr)
+    call win_gotoid(l:previous_window_id)
 endfunction
 
 function! s:create_buffer_for_subtab(subtab_name, dlvim_window_id, buffer_name)
