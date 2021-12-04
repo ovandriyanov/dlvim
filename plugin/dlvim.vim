@@ -88,7 +88,7 @@ function! s:create_buffer_for_subtab(subtab_name, dlvim_window_id, buffer_name)
 endfunction
 
 function! s:uniqualize_name(session_id, name)
-    return 'dlvim' .. a:session_id .. '_' .. a:name
+    return printf('dlvim%s_%s', a:session_id, a:name)
 endfunction
 
 function! s:create_dlvim_buffers(dlvim_window_id)
