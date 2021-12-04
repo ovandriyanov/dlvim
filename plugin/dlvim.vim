@@ -17,9 +17,8 @@ let s:seed = srand()
 
 function! s:format_subtabs_for_status_line(window_id) abort
     let l:formatted_subtab_names = []
-    let l:buffer_map = getwinvar(a:window_id, 'dlvim_buffers')
     for l:subtab_name in s:subtab_names
-        let l:subtab_bufnr = l:buffer_map[l:subtab_name]
+        let l:subtab_bufnr = b:dlvim.session.buffers[l:subtab_name]
         if winbufnr(a:window_id) ==# l:subtab_bufnr
             let l:formatted_subtab_name = '%#ModeMsg#' .. l:subtab_name .. '%#StatusLine#'
         else
@@ -38,16 +37,9 @@ function! s:dlvim_window_status_line() abort
     let l:status_line ..= '%#StatusLineNC#'
     let l:status_line ..= '(select with C-l or C-h)'
     let l:status_line ..= '%#StatusLine#'
+    let l:status_line ..= ' ' .. bufnr()
     return l:status_line
 endfunction
-
-function! s:setup_dlvim_window_options(window_id) abort
-    call win_execute(a:window_id, 'setlocal nonumber')
-    call win_execute(a:window_id, 'setlocal norelativenumber')
-    call win_execute(a:window_id, 'resize 10')
-    call win_execute(a:window_id, 'set winfixheight')
-endfunction
-
 function! s:get_next_subtab_name(current_subtab_name, direction) abort
     let l:subtab_index = index(s:subtab_names, a:current_subtab_name)
     let l:offset = a:direction ==# 'right' ? 1 : -1
@@ -55,34 +47,32 @@ function! s:get_next_subtab_name(current_subtab_name, direction) abort
     return s:subtab_names[l:next_subtab_index]
 endfunction
 
-function! s:rotate_subtab(window_id, direction) abort
-    let l:bufnr = winbufnr(a:window_id)
-    let l:current_subtab_name = getbufvar(l:bufnr, 'dlvim_subtab_name')
+function! s:rotate_subtab(direction) abort
+    let l:current_subtab_name = b:dlvim.subtab_name
     let l:next_subtab_name = s:get_next_subtab_name(l:current_subtab_name, a:direction)
-    let l:next_bufnr = getwinvar(a:window_id, 'dlvim_buffers')[l:next_subtab_name]
-    call win_execute(a:window_id, printf('buffer %d', l:next_bufnr))
+    let l:next_bufnr = b:dlvim.session.buffers[l:next_subtab_name]
+    execute 'buffer' l:next_bufnr
 endfunction
 
-function! s:setup_subtab_buffer(bufnr, subtab_name, window_id) abort
+function! s:setup_subtab_buffer(bufnr, session, subtab_name) abort
     call setbufvar(a:bufnr, '&bufhidden', 'hide')
     call setbufvar(a:bufnr, '&buftype', 'nofile')
-    call setbufvar(a:bufnr, 'window_id', a:window_id)
-    call setbufvar(a:bufnr, 'dlvim_subtab_name', a:subtab_name)
+    call setbufvar(a:bufnr, 'dlvim', {
+        \ 'session': a:session,
+        \ 'subtab_name': a:subtab_name,
+    \ })
 
-    let l:previous_window_id = win_getid()
-    call win_gotoid(a:window_id)
     let l:rotate_subtab_function_name = expand('<SID>') .. 'rotate_subtab'
-    execute a:bufnr .. 'bufdo' printf('nnoremap <buffer> <C-l> :call %s(%d, "right")<Cr>', l:rotate_subtab_function_name, a:window_id)
-    execute a:bufnr .. 'bufdo' printf('nnoremap <buffer> <C-h> :call %s(%d, "left" )<Cr>', l:rotate_subtab_function_name, a:window_id)
+    execute a:bufnr .. 'bufdo' printf('nnoremap <buffer> <C-l> :call %s("right")<Cr>', l:rotate_subtab_function_name)
+    execute a:bufnr .. 'bufdo' printf('nnoremap <buffer> <C-h> :call %s("left" )<Cr>', l:rotate_subtab_function_name)
     let l:status_line_expr = '%{%' .. expand('<SID>') .. 'dlvim_window_status_line()' .. '%}'
-    call win_execute(a:window_id, printf('setlocal statusline=%s', l:status_line_expr))
-    call win_gotoid(l:previous_window_id)
+    execute printf('setlocal statusline=%s', l:status_line_expr)
 endfunction
 
-function! s:create_buffer_for_subtab(subtab_name, window_id, buffer_name) abort
+function! s:create_buffer_for_subtab(session, subtab_name, buffer_name) abort
     execute 'badd' a:buffer_name
     let l:bufnr = bufnr(a:buffer_name)
-    call s:setup_subtab_buffer(l:bufnr, a:subtab_name, a:window_id)
+    call s:setup_subtab_buffer(l:bufnr, a:session, a:subtab_name)
     return l:bufnr
 endfunction
 
@@ -90,25 +80,18 @@ function! s:uniqualize_name(session_id, name) abort
     return printf('dlvim%s_%s', a:session_id, a:name)
 endfunction
 
-function! s:create_dlvim_buffers(window_id) abort
+function! s:create_session(window_id) abort
+    let l:previous_window_id = win_getid()
+    call win_gotoid(a:window_id)
+
     let l:dlvim_session_id = rand(s:seed)
-    let l:buffer_map = {}
+    let l:session = {'buffers': {}}
     for l:subtab_name in s:subtab_names
         let l:unique_buffer_name = s:uniqualize_name(l:dlvim_session_id, l:subtab_name)
-        let l:buffer_map[l:subtab_name] = s:create_buffer_for_subtab(l:subtab_name, a:window_id, l:unique_buffer_name)
+        let l:session['buffers'][l:subtab_name] = s:create_buffer_for_subtab(l:session, l:subtab_name, l:unique_buffer_name)
     endfor
-    return l:buffer_map
-endfunction
-
-function! s:setup_dlvim_window_buffers(window_id) abort
-    let l:buffer_map = s:create_dlvim_buffers(a:window_id)
-    call setwinvar(a:window_id, 'dlvim_buffers', l:buffer_map)
-    call win_execute(a:window_id, 'buffer ' .. l:buffer_map['breakpoints'])
-endfunction
-
-function! s:setup_dlvim_window(window_id) abort
-    call s:setup_dlvim_window_buffers(a:window_id)
-    call s:setup_dlvim_window_options(a:window_id)
+    call win_gotoid(l:previous_window_id)
+    return l:session
 endfunction
 
 function! s:allocate_dlvim_window() abort
@@ -116,20 +99,22 @@ function! s:allocate_dlvim_window() abort
     rightbelow new
     let l:window_id = win_getid()
     call win_gotoid(l:previous_window_id)
-
     return l:window_id
 endfunction
 
-function! s:setup_tab_variables(code_window_id, window_id) abort
-    let t:dlvim_code_window_id = a:code_window_id
-    let t:window_id = a:window_id
+function! s:setup_dlvim_window(window_id, session) abort
+    call win_execute(a:window_id, 'setlocal nonumber')
+    call win_execute(a:window_id, 'setlocal norelativenumber')
+    call win_execute(a:window_id, 'resize 10')
+    call win_execute(a:window_id, 'set winfixheight')
+    call win_execute(a:window_id, printf('buffer %d', a:session['buffers'][s:subtab_names[0]]))
 endfunction
 
 function! s:run_dlvim() abort abort
     let l:code_window_id = win_getid()
     let l:window_id = s:allocate_dlvim_window()
-    call s:setup_tab_variables(l:code_window_id, l:window_id)
-    call s:setup_dlvim_window(l:window_id)
+    let l:session = s:create_session(l:window_id)
+    call s:setup_dlvim_window(l:window_id, l:session)
 
     " let l:log_bufname = 'dlvim' . l:sessionID . '_log'
     " execute 'edit ' . l:log_bufname
