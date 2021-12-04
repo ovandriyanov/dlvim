@@ -20,8 +20,7 @@ function! s:format_subtabs_for_status_line(window_id) abort
     let l:buffer_map = getwinvar(a:window_id, 'dlvim_buffers')
     for l:subtab_name in s:subtab_names
         let l:subtab_bufnr = l:buffer_map[l:subtab_name]
-        let l:current_dlvim_bufnr = winbufnr(a:window_id)
-        if l:current_dlvim_bufnr ==# l:subtab_bufnr
+        if winbufnr(a:window_id) ==# l:subtab_bufnr
             let l:formatted_subtab_name = '%#ModeMsg#' .. l:subtab_name .. '%#StatusLine#'
         else
             let l:formatted_subtab_name = l:subtab_name
