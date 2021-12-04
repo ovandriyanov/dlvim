@@ -13,11 +13,15 @@ let s:subtab_names = [
     \ 'log',
 \ ]
 
+let s:seed = srand()
+
 function! s:format_subtabs_for_status_line(dlvim_window_id)
     let l:formatted_subtab_names = []
+    let l:buffer_map = getwinvar(a:dlvim_window_id, 'dlvim_buffers')
     for l:subtab_name in s:subtab_names
-        let l:current_subtab = getwinvar(a:dlvim_window_id, 'dlvim_current_subtab')
-        if l:current_subtab ==# l:subtab_name
+        let l:subtab_bufnr = l:buffer_map[l:subtab_name]
+        let l:current_dlvim_bufnr = winbufnr(a:dlvim_window_id)
+        if l:current_dlvim_bufnr ==# l:subtab_bufnr
             let l:formatted_subtab_name = '%#ModeMsg#' .. l:subtab_name .. '%#StatusLine#'
         else
             let l:formatted_subtab_name = l:subtab_name
@@ -48,13 +52,40 @@ function! s:setup_dlvim_window_options(dlvim_window_id)
     call win_execute(a:dlvim_window_id, 'setlocal statusline=%!' .. l:status_line_expr)
 endfunction
 
-function! s:setup_dlvim_window_variables(dlvim_window_id)
-    call setwinvar(a:dlvim_window_id, 'dlvim_current_subtab', s:subtab_names[0])
+function! s:setup_subtab_buffer(bufnr)
+    call setbufvar(a:bufnr, '&bufhidden', 'hide')
+    call setbufvar(a:bufnr, '&buftype', 'nofile')
+endfunction
+
+function! s:create_buffer_for_subtab(buffer_name)
+    execute 'badd' a:buffer_name
+    let l:bufnr = bufnr(a:buffer_name)
+    call s:setup_subtab_buffer(l:bufnr)
+    return l:bufnr
+endfunction
+
+function! s:uniqualize_name(session_id, name)
+    return 'dlvim' .. a:session_id .. '_' .. a:name
+endfunction
+
+function! s:create_dlvim_buffers()
+    let l:dlvim_session_id = rand(s:seed)
+    let l:buffer_map = {}
+    let l:buffer_map['breakpoints'] = s:create_buffer_for_subtab(s:uniqualize_name(l:dlvim_session_id, 'breakpoints'))
+    let l:buffer_map['stack']       = s:create_buffer_for_subtab(s:uniqualize_name(l:dlvim_session_id, 'stack'))
+    let l:buffer_map['log']         = s:create_buffer_for_subtab(s:uniqualize_name(l:dlvim_session_id, 'log'))
+    return l:buffer_map
+endfunction
+
+function! s:setup_dlvim_window_buffers(dlvim_window_id)
+    let l:buffer_map = s:create_dlvim_buffers()
+    call setwinvar(a:dlvim_window_id, 'dlvim_buffers', l:buffer_map)
+    call win_execute(a:dlvim_window_id, 'buffer ' .. l:buffer_map['breakpoints'])
 endfunction
 
 function! s:setup_dlvim_window(dlvim_window_id)
+    call s:setup_dlvim_window_buffers(a:dlvim_window_id)
     call s:setup_dlvim_window_options(a:dlvim_window_id)
-    call s:setup_dlvim_window_variables(a:dlvim_window_id)
 endfunction
 
 function! s:allocate_dlvim_window()
