@@ -52,16 +52,17 @@ function! s:setup_dlvim_window_options(dlvim_window_id)
     call win_execute(a:dlvim_window_id, 'setlocal statusline=%!' .. l:status_line_expr)
 endfunction
 
-function! s:setup_subtab_buffer(bufnr, dlvim_window_id)
+function! s:setup_subtab_buffer(bufnr, subtab_name, dlvim_window_id)
     call setbufvar(a:bufnr, '&bufhidden', 'hide')
     call setbufvar(a:bufnr, '&buftype', 'nofile')
     call setbufvar(a:bufnr, 'dlvim_window_id', a:dlvim_window_id)
+    call setbufvar(a:bufnr, 'dlvim_subtab_name', a:subtab_name)
 endfunction
 
-function! s:create_buffer_for_subtab(dlvim_window_id, buffer_name)
+function! s:create_buffer_for_subtab(subtab_name, dlvim_window_id, buffer_name)
     execute 'badd' a:buffer_name
     let l:bufnr = bufnr(a:buffer_name)
-    call s:setup_subtab_buffer(l:bufnr, a:dlvim_window_id)
+    call s:setup_subtab_buffer(l:bufnr, a:subtab_name, a:dlvim_window_id)
     return l:bufnr
 endfunction
 
@@ -74,7 +75,7 @@ function! s:create_dlvim_buffers(dlvim_window_id)
     let l:buffer_map = {}
     for l:subtab_name in s:subtab_names
         let l:unique_buffer_name = s:uniqualize_name(l:dlvim_session_id, l:subtab_name)
-        let l:buffer_map[l:subtab_name] = s:create_buffer_for_subtab(a:dlvim_window_id, l:unique_buffer_name)
+        let l:buffer_map[l:subtab_name] = s:create_buffer_for_subtab(l:subtab_name, a:dlvim_window_id, l:unique_buffer_name)
     endfor
     return l:buffer_map
 endfunction
