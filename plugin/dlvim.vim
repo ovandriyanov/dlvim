@@ -52,7 +52,6 @@ function! s:dlvim_window_status_line() abort
     let l:status_line ..= '%#StatusLineNC#'
     let l:status_line ..= '(select with C-l or C-h)'
     let l:status_line ..= '%#StatusLine#'
-    let l:status_line ..= ' ' .. bufnr()
     return l:status_line
 endfunction
 
