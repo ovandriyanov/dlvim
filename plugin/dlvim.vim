@@ -7,6 +7,21 @@ highlight CurrentInstruction ctermbg=lightblue
 sign define DlvimCurrentInstruction linehl=CurrentInstruction
 sign define DlvimBreakpoint text=●
 
+let s:subtabs = {
+    \ 'breakpoints': {
+        \ 'index': 0,
+        \ 'create_buffer': function(funcref(expand('<SID>') .. 'create_buffer'), ['breakpoints']),
+    \ },
+    \ 'stack': {
+        \ 'index': 1,
+        \ 'create_buffer': function(funcref(expand('<SID>') .. 'create_buffer'), ['stack']),
+    \ },
+    \ 'log': {
+        \ 'index': 2,
+        \ 'create_buffer': function(funcref(expand('<SID>') .. 'create_buffer'), ['log']),
+    \ },
+\ }
+
 let s:subtab_names = [
     \ 'breakpoints',
     \ 'stack',
@@ -17,7 +32,7 @@ let s:seed = srand()
 
 function! s:format_subtabs_for_status_line(window_id) abort
     let l:formatted_subtab_names = []
-    for l:subtab_name in s:subtab_names
+    for l:subtab_name in keys(s:subtabs)
         let l:subtab_bufnr = b:dlvim.session.buffers[l:subtab_name]
         if winbufnr(a:window_id) ==# l:subtab_bufnr
             let l:formatted_subtab_name = '%#ModeMsg#' .. l:subtab_name .. '%#StatusLine#'
@@ -40,10 +55,11 @@ function! s:dlvim_window_status_line() abort
     let l:status_line ..= ' ' .. bufnr()
     return l:status_line
 endfunction
+
 function! s:get_next_subtab_name(current_subtab_name, direction) abort
-    let l:subtab_index = index(s:subtab_names, a:current_subtab_name)
+    let l:subtab_index = s:subtabs[a:current_subtab_name].index
     let l:offset = a:direction ==# 'right' ? 1 : -1
-    let l:next_subtab_index = (l:subtab_index + l:offset) % len(s:subtab_names)
+    let l:next_subtab_index = (l:subtab_index + l:offset) % len(s:subtabs)
     return s:subtab_names[l:next_subtab_index]
 endfunction
 
@@ -69,9 +85,10 @@ function! s:setup_subtab_buffer(bufnr, session, subtab_name) abort
     execute printf('setlocal statusline=%s', l:status_line_expr)
 endfunction
 
-function! s:create_buffer_for_subtab(session, subtab_name, buffer_name) abort
-    execute 'badd' a:buffer_name
-    let l:bufnr = bufnr(a:buffer_name)
+function! s:create_buffer(subtab_name, session) abort
+    let l:buffer_name = s:uniqualize_name(a:session.id, a:subtab_name)
+    execute 'badd' l:buffer_name
+    let l:bufnr = bufnr(l:buffer_name)
     call s:setup_subtab_buffer(l:bufnr, a:session, a:subtab_name)
     return l:bufnr
 endfunction
@@ -84,12 +101,14 @@ function! s:create_session(window_id) abort
     let l:previous_window_id = win_getid()
     call win_gotoid(a:window_id)
 
-    let l:dlvim_session_id = rand(s:seed)
-    let l:session = {'buffers': {}}
-    for l:subtab_name in s:subtab_names
-        let l:unique_buffer_name = s:uniqualize_name(l:dlvim_session_id, l:subtab_name)
-        let l:session['buffers'][l:subtab_name] = s:create_buffer_for_subtab(l:session, l:subtab_name, l:unique_buffer_name)
+    let l:session = {
+        \ 'id': rand(s:seed),
+        \ 'buffers': {},
+    \ }
+    for [l:subtab_name, l:subtab] in items(s:subtabs)
+        let l:session.buffers[l:subtab_name] = l:subtab.create_buffer(l:session)
     endfor
+
     call win_gotoid(l:previous_window_id)
     return l:session
 endfunction
