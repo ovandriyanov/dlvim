@@ -52,15 +52,16 @@ function! s:setup_dlvim_window_options(dlvim_window_id)
     call win_execute(a:dlvim_window_id, 'setlocal statusline=%!' .. l:status_line_expr)
 endfunction
 
-function! s:setup_subtab_buffer(bufnr)
+function! s:setup_subtab_buffer(bufnr, dlvim_window_id)
     call setbufvar(a:bufnr, '&bufhidden', 'hide')
     call setbufvar(a:bufnr, '&buftype', 'nofile')
+    call setbufvar(a:bufnr, 'dlvim_window_id', a:dlvim_window_id)
 endfunction
 
-function! s:create_buffer_for_subtab(buffer_name)
+function! s:create_buffer_for_subtab(dlvim_window_id, buffer_name)
     execute 'badd' a:buffer_name
     let l:bufnr = bufnr(a:buffer_name)
-    call s:setup_subtab_buffer(l:bufnr)
+    call s:setup_subtab_buffer(l:bufnr, a:dlvim_window_id)
     return l:bufnr
 endfunction
 
@@ -68,17 +69,18 @@ function! s:uniqualize_name(session_id, name)
     return 'dlvim' .. a:session_id .. '_' .. a:name
 endfunction
 
-function! s:create_dlvim_buffers()
+function! s:create_dlvim_buffers(dlvim_window_id)
     let l:dlvim_session_id = rand(s:seed)
     let l:buffer_map = {}
-    let l:buffer_map['breakpoints'] = s:create_buffer_for_subtab(s:uniqualize_name(l:dlvim_session_id, 'breakpoints'))
-    let l:buffer_map['stack']       = s:create_buffer_for_subtab(s:uniqualize_name(l:dlvim_session_id, 'stack'))
-    let l:buffer_map['log']         = s:create_buffer_for_subtab(s:uniqualize_name(l:dlvim_session_id, 'log'))
+    for l:subtab_name in s:subtab_names
+        let l:unique_buffer_name = s:uniqualize_name(l:dlvim_session_id, l:subtab_name)
+        let l:buffer_map[l:subtab_name] = s:create_buffer_for_subtab(a:dlvim_window_id, l:unique_buffer_name)
+    endfor
     return l:buffer_map
 endfunction
 
 function! s:setup_dlvim_window_buffers(dlvim_window_id)
-    let l:buffer_map = s:create_dlvim_buffers()
+    let l:buffer_map = s:create_dlvim_buffers(a:dlvim_window_id)
     call setwinvar(a:dlvim_window_id, 'dlvim_buffers', l:buffer_map)
     call win_execute(a:dlvim_window_id, 'buffer ' .. l:buffer_map['breakpoints'])
 endfunction
