@@ -1,7 +1,7 @@
 command! -nargs=+ Dlv call s:start_session([<f-args>])
 
-let s:proxy_py_path = '/home/ovandriyanov/github/ovandriyanov/dlvim/proxy/proxy.py'
-"let s:proxy_py_path = ['bash', '-c', 'while true; do sleep 5; echo kek; done']
+let s:repository_root = fnamemodify(expand('<sfile>'), ':h:h')
+let s:proxy_path = s:repository_root .. '/go_proxy/go_proxy'
 
 highlight CurrentInstruction ctermbg=lightblue
 sign define DlvimCurrentInstruction linehl=CurrentInstruction
@@ -162,8 +162,23 @@ function! s:create_buffers(session)
     return l:buffers
 endfunction
 
+function! s:create_proxy_job(dlv_argv) abort
+    let l:log_file_name = tempname()
+    let l:job_options = {
+        \  'mode':      'json',
+        \  'err_io':    'file',
+        \  'err_name':  l:log_file_name,
+    \ }
+    let l:job = job_start(s:proxy_path, l:job_options)
+    let l:init_response = ch_evalexpr(l:job, ['initialize', {'dlv_argv': a:dlv_argv}])
+    if has_key(l:init_response, 'error')
+        throw printf('Proxy initialization failed: %s', l:init_response.error)
+    endif
+    return l:job
+endfunction
+
 function! s:create_session(dlv_argv) abort
-    let l:proxy_job = {}
+    let l:proxy_job = s:create_proxy_job(a:dlv_argv)
 
     let l:session = {
         \ 'id':      rand(s:seed),
