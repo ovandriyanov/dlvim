@@ -100,6 +100,11 @@ function! s:collect_garbage(bufnr_being_left) abort
         endif
     endfor
 
+    call job_stop(l:session.proxy_job)
+    while job_status(l:session.proxy_job) ==# 'run'
+        sleep 20m
+    endwhile
+
     call setbufvar(a:bufnr_being_left, '&bufhidden', 'wipe')
     if getbufvar(a:bufnr_being_left, '&buftype') ==# 'terminal'
         let l:job = term_getjob(a:bufnr_being_left)
