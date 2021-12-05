@@ -23,24 +23,24 @@ function! s:create_terminal(subtab_name, session) abort
 endfunction
 
 let s:subtabs = {
-    \ 'breakpoints': {
-        \ 'index': 0,
-        \ 'create_buffer': function(funcref(expand('<SID>') .. 'create_buffer'), ['breakpoints']),
-    \ },
-    \ 'stack': {
-        \ 'index': 1,
-        \ 'create_buffer': function(funcref(expand('<SID>') .. 'create_buffer'), ['stack']),
-    \ },
-    \ 'log': {
-        \ 'index': 2,
-        \ 'create_buffer': function(funcref(expand('<SID>') .. 'create_terminal'), ['log']),
-    \ },
+\     'breakpoints': {
+\         'index': 0,
+\         'create_buffer': function(funcref(expand('<SID>') .. 'create_buffer'), ['breakpoints']),
+\     },
+\     'stack': {
+\         'index': 1,
+\         'create_buffer': function(funcref(expand('<SID>') .. 'create_buffer'), ['stack']),
+\     },
+\     'log': {
+\         'index': 2,
+\         'create_buffer': function(funcref(expand('<SID>') .. 'create_terminal'), ['log']),
+\     },
 \ }
 
 let s:subtab_names = [
-    \ 'breakpoints',
-    \ 'stack',
-    \ 'log',
+\     'breakpoints',
+\     'stack',
+\     'log',
 \ ]
 
 let s:seed = srand()
@@ -123,8 +123,8 @@ function! s:setup_subtab_buffer(bufnr, session, subtab_name) abort
         call setbufvar(a:bufnr, '&buftype', 'nofile')
     endif
     call setbufvar(a:bufnr, 'dlvim', {
-        \ 'session':     a:session,
-        \ 'subtab_name': a:subtab_name,
+    \     'session':     a:session,
+    \     'subtab_name': a:subtab_name,
     \ })
 
     execute 'buffer' a:bufnr
@@ -165,9 +165,9 @@ endfunction
 function! s:create_proxy_job(dlv_argv) abort
     let l:log_file_name = tempname()
     let l:job_options = {
-        \  'mode':      'json',
-        \  'err_io':    'file',
-        \  'err_name':  l:log_file_name,
+    \      'mode':      'json',
+    \      'err_io':    'file',
+    \      'err_name':  l:log_file_name,
     \ }
     let l:job = job_start(s:proxy_path, l:job_options)
     let l:init_response = ch_evalexpr(l:job, ['initialize', {'dlv_argv': a:dlv_argv}])
@@ -181,9 +181,9 @@ function! s:create_session(dlv_argv) abort
     let l:proxy_job = s:create_proxy_job(a:dlv_argv)
 
     let l:session = {
-        \ 'id':      rand(s:seed),
-        \ 'proxy_job': l:proxy_job,
-        \ 'buffers': {},
+    \     'id':      rand(s:seed),
+    \     'proxy_job': l:proxy_job,
+    \     'buffers': {},
     \ }
     let l:session.buffers = s:create_buffers(l:session)
 
