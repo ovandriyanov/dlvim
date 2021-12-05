@@ -145,27 +145,34 @@ function! s:uniqualize_name(session_id, name) abort
     return printf('dlvim%s_%s', a:session_id, a:name)
 endfunction
 
-function! s:create_session(window_id) abort
+function! s:create_buffers(session)
     let l:previous_window_id = win_getid()
-    call win_gotoid(a:window_id)
+    new
 
-    try
-        let l:session = {
-            \ 'id': rand(s:seed),
-            \ 'buffers': {},
-        \ }
+    let buffers = {}
+    let l:old_eventignore=&eventignore
+    set eventignore=BufWinLeave
+    for [l:subtab_name, l:subtab] in items(s:subtabs)
+        let l:buffers[l:subtab_name] = l:subtab.create_buffer(a:session)
+    endfor
+    close
+    let &eventignore = l:old_eventignore
 
-        let l:old_eventignore=&eventignore
-        set eventignore=BufWinLeave
-        for [l:subtab_name, l:subtab] in items(s:subtabs)
-            let l:session.buffers[l:subtab_name] = l:subtab.create_buffer(l:session)
-        endfor
-        let &eventignore = l:old_eventignore
+    call win_gotoid(l:previous_window_id)
+    return l:buffers
+endfunction
 
-        return l:session
-    finally
-        call win_gotoid(l:previous_window_id)
-    endtry
+function! s:create_session(dlv_argv) abort
+    let l:proxy_job = {}
+
+    let l:session = {
+        \ 'id':      rand(s:seed),
+        \ 'proxy_job': l:proxy_job,
+        \ 'buffers': {},
+    \ }
+    let l:session.buffers = s:create_buffers(l:session)
+
+    return l:session
 endfunction
 
 function! s:allocate_dlvim_window() abort
@@ -186,16 +193,9 @@ function! s:setup_dlvim_window(window_id, session) abort
     let &eventignore = l:old_eventignore
 endfunction
 
-function! s:start_session(argv) abort
+function! s:start_session(dlv_argv) abort
+    let l:session = s:create_session(a:dlv_argv)
     let l:window_id = s:allocate_dlvim_window()
-    try
-        let l:session = s:create_session(l:window_id)
-    catch
-        call win_execute(l:window_id, 'close')
-        echoerr v:exception
-        return
-    endtry
-
     call s:setup_dlvim_window(l:window_id, l:session)
 
     " let l:log_bufname = 'dlvim' . l:sessionID . '_log'
