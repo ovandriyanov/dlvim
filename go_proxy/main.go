@@ -17,7 +17,6 @@ import (
 const (
 	dlvProxyAddr  = "localhost:8080"
 	dlvListenAddr = "localhost:8888"
-	vimServerAddr = "localhost:7778"
 )
 
 func main() {
@@ -35,7 +34,6 @@ func main() {
 	rpc.SetupServer(ctx, &wg, "DlvProxy", dlvProxyAddr, func(rootCtx context.Context, clientConn io.ReadWriteCloser) {
 		dlv.HandleClient(rootCtx, clientConn, dlvListenAddr)
 	})
-	rpc.SetupServer(ctx, &wg, "Vim", vimServerAddr, vim.HandleClient)
 
 	wg.Add(1)
 	go func() {
