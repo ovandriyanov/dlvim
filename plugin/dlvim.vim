@@ -118,6 +118,7 @@ endfunction
 
 function! s:setup_subtab_buffer(bufnr, session, subtab_name) abort
     call setbufvar(a:bufnr, '&bufhidden', 'hide')
+    call setbufvar(a:bufnr, '&buflisted', '0')
     if getbufvar(a:bufnr, '&buftype') !=# 'terminal'
         call setbufvar(a:bufnr, '&buftype', 'nofile')
     endif
