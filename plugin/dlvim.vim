@@ -1,4 +1,4 @@
-command! -nargs=+ Dlv call s:run_dlvim([<f-args>])
+command! -nargs=+ Dlv call s:start_session([<f-args>])
 
 let s:proxy_py_path = '/home/ovandriyanov/github/ovandriyanov/dlvim/proxy/proxy.py'
 "let s:proxy_py_path = ['bash', '-c', 'while true; do sleep 5; echo kek; done']
@@ -186,7 +186,7 @@ function! s:setup_dlvim_window(window_id, session) abort
     let &eventignore = l:old_eventignore
 endfunction
 
-function! s:run_dlvim(argv) abort
+function! s:start_session(argv) abort
     let l:window_id = s:allocate_dlvim_window()
     try
         let l:session = s:create_session(l:window_id)
