@@ -8,8 +8,9 @@ import (
 	"sync"
 
 	"github.com/ovandriyanov/dlvim/go_proxy/common"
-	"github.com/ovandriyanov/dlvim/go_proxy/dlv"
-	"github.com/ovandriyanov/dlvim/go_proxy/vim"
+	"github.com/ovandriyanov/dlvim/go_proxy/rpc"
+	"github.com/ovandriyanov/dlvim/go_proxy/rpc/dlv"
+	"github.com/ovandriyanov/dlvim/go_proxy/rpc/vim"
 )
 
 const (
@@ -30,10 +31,10 @@ func main() {
 	}()
 
 	dlv.StartDlv(ctx, cancel, &wg, dlvListenAddr)
-	common.SetupServer(ctx, &wg, "DlvProxy", dlvProxyAddr, func(rootCtx context.Context, clientConn io.ReadWriteCloser) {
+	rpc.SetupServer(ctx, &wg, "DlvProxy", dlvProxyAddr, func(rootCtx context.Context, clientConn io.ReadWriteCloser) {
 		dlv.HandleClient(rootCtx, clientConn, dlvListenAddr)
 	})
-	common.SetupServer(ctx, &wg, "Vim", vimServerAddr, vim.HandleClient)
+	rpc.SetupServer(ctx, &wg, "Vim", vimServerAddr, vim.HandleClient)
 
 	wg.Add(1)
 	go func() {

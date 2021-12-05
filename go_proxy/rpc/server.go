@@ -1,4 +1,4 @@
-package common
+package rpc
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"log"
 	"net"
 	"sync"
+
+	"github.com/ovandriyanov/dlvim/go_proxy/common"
 )
 
 type clientHandler func(rootCtx context.Context, clientConn io.ReadWriteCloser)
@@ -22,7 +24,7 @@ func acceptClients(ctx context.Context, listener net.Listener, name string, hand
 		for {
 			conn, err := listener.Accept()
 			if ctx.Err() == nil {
-				NoError(err)
+				common.NoError(err)
 			}
 			select {
 			case connectionsCh <- conn:
@@ -51,7 +53,7 @@ func acceptClients(ctx context.Context, listener net.Listener, name string, hand
 
 func SetupServer(ctx context.Context, wg *sync.WaitGroup, name, addr string, handler clientHandler) {
 	listener, err := net.Listen("tcp", addr)
-	NoError(err)
+	common.NoError(err)
 	log.Printf("%s server is listening at %v\n", name, addr)
 
 	wg.Add(1)
