@@ -181,7 +181,7 @@ function! s:create_proxy_job(dlv_argv, proxy_log_file) abort
     let l:init_response = ch_evalexpr(l:job, ['Initialize', {'dlv_argv': a:dlv_argv}])
     echom 'RESPONSE: ' l:init_response
     if has_key(l:init_response, 'Error')
-        throw printf('Proxy initialization failed: %s', l:init_response.error)
+        throw printf('proxy initialization failed: %s', l:init_response.Error)
     endif
     return l:job
 endfunction
@@ -220,7 +220,12 @@ function! s:setup_dlvim_window(window_id, session) abort
 endfunction
 
 function! s:start_session(dlv_argv) abort
-    let l:session = s:create_session(a:dlv_argv)
+    try
+        let l:session = s:create_session(a:dlv_argv)
+    catch
+        echoerr 'cannot create session: ' .. v:exception
+        return
+    endtry
     let l:window_id = s:allocate_dlvim_window()
     call s:setup_dlvim_window(l:window_id, l:session)
 
