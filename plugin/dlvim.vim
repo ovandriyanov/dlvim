@@ -1,4 +1,4 @@
-command! Dlvim call s:run_dlvim()
+command! -nargs=+ Dlv call s:run_dlvim([<f-args>])
 
 let s:proxy_py_path = '/home/ovandriyanov/github/ovandriyanov/dlvim/proxy/proxy.py'
 "let s:proxy_py_path = ['bash', '-c', 'while true; do sleep 5; echo kek; done']
