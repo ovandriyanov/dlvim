@@ -16,7 +16,6 @@ import (
 
 const (
 	proxyListenAddress = "localhost:8080"
-	upstreamAddress    = "localhost:8888"
 )
 
 func main() {
@@ -30,15 +29,20 @@ func main() {
 		wg.Wait()
 	}()
 
-	upstream.StartDlv(ctx, cancel, &wg, upstreamAddress)
 	rpc.SetupServer(ctx, &wg, "Proxy", proxyListenAddress, func(rootCtx context.Context, clientConn io.ReadWriteCloser) {
-		proxy.HandleClient(rootCtx, clientConn, upstreamAddress)
+		proxy.HandleClient(rootCtx, clientConn, upstream.ListenAddress)
 	})
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		vim.HandleClient(ctx, common.NewStdioConn())
+		vimServer := vim.NewServer()
+		defer func() {
+			if err := vimServer.Close(); err != nil {
+				log.Printf("ERROR: cannot close vim server: %s", err.Error())
+			}
+		}()
+		vimServer.HandleClient(ctx, common.NewStdioConn())
 		cancel()
 	}()
 	common.SetSignalHandler(ctx, cancel, &wg)

@@ -5,3 +5,8 @@ func NoError(err error) {
 		panic(err)
 	}
 }
+
+func DrainChannel(ch <-chan error) {
+	for range ch {
+	}
+}
