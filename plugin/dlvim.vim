@@ -15,9 +15,13 @@ function! s:create_buffer(subtab_name, session) abort
     return l:bufnr
 endfunction
 
-function! s:create_terminal(subtab_name, session) abort
+function! s:create_log_buffer(subtab_name, session) abort
     let l:buffer_name = s:uniqualize_name(a:session.id, a:subtab_name)
-    terminal ++curwin ++kill=TERM ++noclose
+    execute 'terminal'
+    \  '++curwin'
+    \  '++kill=TERM'
+    \  '++noclose'
+    \  printf('tail -n +1 -f %s', a:session.proxy_log_file)
     call s:setup_subtab_buffer(bufnr(), a:session, a:subtab_name)
     return bufnr()
 endfunction
@@ -33,7 +37,7 @@ let s:subtabs = {
 \     },
 \     'log': {
 \         'index': 2,
-\         'create_buffer': function(funcref(expand('<SID>') .. 'create_terminal'), ['log']),
+\         'create_buffer': function(funcref(expand('<SID>') .. 'create_log_buffer'), ['log']),
 \     },
 \ }
 
@@ -167,15 +171,15 @@ function! s:create_buffers(session)
     return l:buffers
 endfunction
 
-function! s:create_proxy_job(dlv_argv) abort
-    let l:log_file_name = tempname()
+function! s:create_proxy_job(dlv_argv, proxy_log_file) abort
     let l:job_options = {
     \      'mode':      'json',
     \      'err_io':    'file',
-    \      'err_name':  l:log_file_name,
+    \      'err_name':  a:proxy_log_file,
     \ }
     let l:job = job_start(s:proxy_path, l:job_options)
     let l:init_response = ch_evalexpr(l:job, ['initialize', {'dlv_argv': a:dlv_argv}])
+    echom 'RESPONSE: ' l:init_response
     if has_key(l:init_response, 'error')
         throw printf('Proxy initialization failed: %s', l:init_response.error)
     endif
@@ -183,12 +187,14 @@ function! s:create_proxy_job(dlv_argv) abort
 endfunction
 
 function! s:create_session(dlv_argv) abort
-    let l:proxy_job = s:create_proxy_job(a:dlv_argv)
+    let l:proxy_log_file = tempname()
+    let l:proxy_job = s:create_proxy_job(a:dlv_argv, l:proxy_log_file)
 
     let l:session = {
-    \     'id':      rand(s:seed),
-    \     'proxy_job': l:proxy_job,
-    \     'buffers': {},
+    \   'id':              rand(s:seed),
+    \   'proxy_job':       l:proxy_job,
+    \   'proxy_log_file':  l:proxy_log_file,
+    \   'buffers':         {},
     \ }
     let l:session.buffers = s:create_buffers(l:session)
 
