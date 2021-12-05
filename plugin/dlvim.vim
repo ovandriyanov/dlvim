@@ -177,8 +177,6 @@ function! s:allocate_dlvim_window() abort
 endfunction
 
 function! s:setup_dlvim_window(window_id, session) abort
-    call win_execute(a:window_id, 'setlocal nonumber')
-    call win_execute(a:window_id, 'setlocal norelativenumber')
     call win_execute(a:window_id, 'resize 10')
     call win_execute(a:window_id, 'set winfixheight')
 
