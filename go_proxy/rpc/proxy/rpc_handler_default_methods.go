@@ -1,4 +1,4 @@
-package dlv
+package proxy
 
 func (h *RPCHandler) SetApiVersion(req map[string]interface{}, resp *map[string]interface{}) error {
 	return h.defaultHandler(fqmn("SetApiVersion"), req, resp)

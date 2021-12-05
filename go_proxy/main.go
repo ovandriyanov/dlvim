@@ -9,14 +9,14 @@ import (
 
 	"github.com/ovandriyanov/dlvim/go_proxy/common"
 	"github.com/ovandriyanov/dlvim/go_proxy/rpc"
-	"github.com/ovandriyanov/dlvim/go_proxy/rpc/dlv"
+	"github.com/ovandriyanov/dlvim/go_proxy/rpc/proxy"
 	"github.com/ovandriyanov/dlvim/go_proxy/rpc/vim"
 	"github.com/ovandriyanov/dlvim/go_proxy/upstream"
 )
 
 const (
-	dlvProxyAddr  = "localhost:8080"
-	dlvListenAddr = "localhost:8888"
+	proxyListenAddress = "localhost:8080"
+	upstreamAddress    = "localhost:8888"
 )
 
 func main() {
@@ -30,9 +30,9 @@ func main() {
 		wg.Wait()
 	}()
 
-	upstream.StartDlv(ctx, cancel, &wg, dlvListenAddr)
-	rpc.SetupServer(ctx, &wg, "DlvProxy", dlvProxyAddr, func(rootCtx context.Context, clientConn io.ReadWriteCloser) {
-		dlv.HandleClient(rootCtx, clientConn, dlvListenAddr)
+	upstream.StartDlv(ctx, cancel, &wg, upstreamAddress)
+	rpc.SetupServer(ctx, &wg, "Proxy", proxyListenAddress, func(rootCtx context.Context, clientConn io.ReadWriteCloser) {
+		proxy.HandleClient(rootCtx, clientConn, upstreamAddress)
 	})
 
 	wg.Add(1)
