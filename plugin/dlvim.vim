@@ -17,7 +17,7 @@ endfunction
 
 function! s:create_terminal(subtab_name, session) abort
     let l:buffer_name = s:uniqualize_name(a:session.id, a:subtab_name)
-    terminal ++curwin
+    terminal ++curwin ++kill=TERM ++noclose
     call s:setup_subtab_buffer(bufnr(), a:session, a:subtab_name)
     return bufnr()
 endfunction
@@ -81,25 +81,63 @@ function! s:rotate_subtab(direction) abort
     let l:current_subtab_name = b:dlvim.subtab_name
     let l:next_subtab_name = s:get_next_subtab_name(l:current_subtab_name, a:direction)
     let l:next_bufnr = b:dlvim.session.buffers[l:next_subtab_name]
+
+
+    let l:old_eventignore=&eventignore
+    set eventignore=BufWinLeave
     execute 'buffer' l:next_bufnr
+    let &eventignore=l:old_eventignore
+endfunction
+
+function! s:collect_garbage(bufnr_being_left) abort
+    let l:session = getbufvar(a:bufnr_being_left, 'dlvim').session
+    for l:bufnr in values(l:session.buffers)
+        if l:bufnr == a:bufnr_being_left
+            continue
+        endif
+        if bufwinid(l:bufnr) != -1
+            return
+        endif
+    endfor
+
+    call setbufvar(a:bufnr_being_left, '&bufhidden', 'wipe')
+    if getbufvar(a:bufnr_being_left, '&buftype') ==# 'terminal'
+        let l:job = term_getjob(a:bufnr_being_left)
+        call job_stop(l:job)
+    endif
+
+    let l:values = values(l:session.buffers)
+    for l:bufnr in l:values
+        if l:bufnr == a:bufnr_being_left
+            continue
+        endif
+        execute l:bufnr . 'bwipeout!'
+    endfor
+    echo 'Dlvim exited'
 endfunction
 
 function! s:setup_subtab_buffer(bufnr, session, subtab_name) abort
     call setbufvar(a:bufnr, '&bufhidden', 'hide')
-    call setbufvar(a:bufnr, '&buftype', 'nofile')
+    if getbufvar(a:bufnr, '&buftype') !=# 'terminal'
+        call setbufvar(a:bufnr, '&buftype', 'nofile')
+    endif
     call setbufvar(a:bufnr, 'dlvim', {
-        \ 'session': a:session,
+        \ 'session':     a:session,
         \ 'subtab_name': a:subtab_name,
     \ })
 
-    let l:rotate_subtab_function_name = expand('<SID>') .. 'rotate_subtab'
     execute 'buffer' a:bufnr
+
+    let l:rotate_subtab_function_name = expand('<SID>') .. 'rotate_subtab'
     execute printf('nnoremap <buffer> <C-l> :call %s("right")<Cr>', l:rotate_subtab_function_name)
     execute printf('nnoremap <buffer> <C-h> :call %s("left" )<Cr>', l:rotate_subtab_function_name)
     execute printf('tnoremap <buffer> <C-l> <C-^>:call %s("right")<Cr>', l:rotate_subtab_function_name)
     execute printf('tnoremap <buffer> <C-h> <C-^>:call %s("left" )<Cr>', l:rotate_subtab_function_name)
+
     let l:status_line_expr = '%{%' .. expand('<SID>') .. 'dlvim_window_status_line()' .. '%}'
     execute printf('setlocal statusline=%s', l:status_line_expr)
+
+    autocmd BufWinLeave <buffer> call s:collect_garbage(str2nr(expand('<abuf>')))
 endfunction
 
 function! s:uniqualize_name(session_id, name) abort
@@ -114,9 +152,13 @@ function! s:create_session(window_id) abort
         \ 'id': rand(s:seed),
         \ 'buffers': {},
     \ }
+
+    let l:old_eventignore=&eventignore
+    set eventignore=BufWinLeave
     for [l:subtab_name, l:subtab] in items(s:subtabs)
         let l:session.buffers[l:subtab_name] = l:subtab.create_buffer(l:session)
     endfor
+    let &eventignore = l:old_eventignore
 
     call win_gotoid(l:previous_window_id)
     return l:session
@@ -135,7 +177,11 @@ function! s:setup_dlvim_window(window_id, session) abort
     call win_execute(a:window_id, 'setlocal norelativenumber')
     call win_execute(a:window_id, 'resize 10')
     call win_execute(a:window_id, 'set winfixheight')
+
+    let l:old_eventignore=&eventignore
+    set eventignore=BufWinLeave
     call win_execute(a:window_id, printf('buffer %d', a:session['buffers'][s:subtab_names[0]]))
+    let &eventignore = l:old_eventignore
 endfunction
 
 function! s:run_dlvim() abort abort
@@ -173,22 +219,22 @@ function! s:setSessionVariable(sessionID, varname, value) abort
     return settabwinvar(l:tabwin[0], l:tabwin[1], a:varname, a:value)
 endfunction
 
-function! s:cleanup(sessionID) abort
-    let l:tabwin = win_id2tabwin(a:sessionID)
-    if l:tabwin == [0, 0] || gettabwinvar(l:tabwin[0], l:tabwin[1], 'dlvim') != 1
-        return
-    endif
-
-    call s:ClearBreakpoints()
-    call s:ClearCurrentInstruction()
-    let l:job = s:getSessionVariable(a:sessionID, 'job', v:null)
-    if l:job !=# v:null
-        call job_stop(l:job)
-    endif
-    if has_key(g:DlvimSessions, a:sessionID)
-        unlet g:DlvimSessions[a:sessionID]
-    endif
-endfunction
+"function! s:cleanup(sessionID) abort
+"    let l:tabwin = win_id2tabwin(a:sessionID)
+"    if l:tabwin == [0, 0] || gettabwinvar(l:tabwin[0], l:tabwin[1], 'dlvim') != 1
+"        return
+"    endif
+"
+"    call s:ClearBreakpoints()
+"    call s:ClearCurrentInstruction()
+"    let l:job = s:getSessionVariable(a:sessionID, 'job', v:null)
+"    if l:job !=# v:null
+"        call job_stop(l:job)
+"    endif
+"    if has_key(g:DlvimSessions, a:sessionID)
+"        unlet g:DlvimSessions[a:sessionID]
+"    endif
+"endfunction
 
 function! DlvCleanup() abort
     for l:sessionID in keys(g:DlvimSessions)
@@ -338,7 +384,7 @@ nnoremap <C-^>ac<C-^>i :call DlvimInterrupt()<Cr>
 nnoremap <C-^>ac<C-^>p :call DlvimPrint(GetCurrentWord())<Cr>
 vnoremap <C-^>ac<C-^>p :<C-U>call DlvimPrint(GetLastSelection())<Cr>
 
-augroup dlvim
-    autocmd!
-    autocmd QuitPre * call s:cleanup(win_getid())
-augroup END
+"augroup dlvim
+"    autocmd!
+"    autocmd BufWinLeave * call s:cleanup(win_getid())
+"augroup END
