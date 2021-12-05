@@ -149,20 +149,23 @@ function! s:create_session(window_id) abort
     let l:previous_window_id = win_getid()
     call win_gotoid(a:window_id)
 
-    let l:session = {
-        \ 'id': rand(s:seed),
-        \ 'buffers': {},
-    \ }
+    try
+        let l:session = {
+            \ 'id': rand(s:seed),
+            \ 'buffers': {},
+        \ }
 
-    let l:old_eventignore=&eventignore
-    set eventignore=BufWinLeave
-    for [l:subtab_name, l:subtab] in items(s:subtabs)
-        let l:session.buffers[l:subtab_name] = l:subtab.create_buffer(l:session)
-    endfor
-    let &eventignore = l:old_eventignore
+        let l:old_eventignore=&eventignore
+        set eventignore=BufWinLeave
+        for [l:subtab_name, l:subtab] in items(s:subtabs)
+            let l:session.buffers[l:subtab_name] = l:subtab.create_buffer(l:session)
+        endfor
+        let &eventignore = l:old_eventignore
 
-    call win_gotoid(l:previous_window_id)
-    return l:session
+        return l:session
+    finally
+        call win_gotoid(l:previous_window_id)
+    endtry
 endfunction
 
 function! s:allocate_dlvim_window() abort
@@ -185,10 +188,16 @@ function! s:setup_dlvim_window(window_id, session) abort
     let &eventignore = l:old_eventignore
 endfunction
 
-function! s:run_dlvim() abort abort
-    let l:code_window_id = win_getid()
+function! s:run_dlvim(argv) abort
     let l:window_id = s:allocate_dlvim_window()
-    let l:session = s:create_session(l:window_id)
+    try
+        let l:session = s:create_session(l:window_id)
+    catch
+        call win_execute(l:window_id, 'close')
+        echoerr v:exception
+        return
+    endtry
+
     call s:setup_dlvim_window(l:window_id, l:session)
 
     " let l:log_bufname = 'dlvim' . l:sessionID . '_log'
