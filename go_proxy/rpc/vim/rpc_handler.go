@@ -68,5 +68,5 @@ func (h *RPCHandler) Initialize(req map[string]interface{}, resp *map[string]int
 		return xerrors.Errorf("'dlv_argv' is invalid: %w", err)
 	}
 
-	return h.server.InitializeUpstream(command)
+	return h.server.Initialize(command)
 }

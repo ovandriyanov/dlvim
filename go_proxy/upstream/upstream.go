@@ -24,9 +24,10 @@ const (
 	ListenAddress = "localhost:8888"
 )
 
-func (u *Upstream) Stop() error {
+func (u *Upstream) Stop() {
 	if err := u.cmd.Process.Signal(syscall.SIGINT); err != nil {
-		return xerrors.Errorf("cannot send SIGINT to process %d: %w", u.cmd.Process.Pid, err)
+		log.Printf("cannot send SIGINT to process %d: %v\n", u.cmd.Process.Pid, err)
+		return
 	}
 	defer common.DrainChannel(u.processErrCh)
 	defer u.logWg.Wait()
@@ -40,7 +41,7 @@ func (u *Upstream) Stop() error {
 		}
 	}
 
-	return nil
+	return
 }
 
 func (u *Upstream) Error() <-chan error {

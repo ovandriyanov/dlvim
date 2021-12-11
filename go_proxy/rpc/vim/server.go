@@ -12,19 +12,19 @@ import (
 )
 
 type Server struct {
-	mutex    sync.Mutex
-	upstream *upstream.Upstream
+	mutex     sync.Mutex
+	inventory *inventory
 }
 
-func (s *Server) Close() error {
+func (s *Server) Stop() {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if s.upstream == nil {
-		return nil
+	if s.inventory == nil {
+		return
 	}
 
-	return s.upstream.Stop()
+	s.inventory.Stop()
 }
 
 func (s *Server) HandleClient(ctx context.Context, clientConn io.ReadWriteCloser) {
@@ -49,17 +49,17 @@ func (s *Server) HandleClient(ctx context.Context, clientConn io.ReadWriteCloser
 	}
 }
 
-func (s *Server) InitializeUpstream(command upstream.Command) (err error) {
+func (s *Server) Initialize(command upstream.Command) (err error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	if s.upstream != nil {
+	if s.inventory != nil {
 		return xerrors.New("already initialized")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	s.upstream, err = upstream.New(ctx, command)
+	s.inventory, err = NewInventory(ctx, command)
 	if err != nil {
 		return xerrors.Errorf("cannot start dlv: %w", err)
 	}
@@ -69,7 +69,7 @@ func (s *Server) InitializeUpstream(command upstream.Command) (err error) {
 
 func NewServer() *Server {
 	return &Server{
-		mutex:    sync.Mutex{},
-		upstream: nil,
+		mutex:     sync.Mutex{},
+		inventory: nil,
 	}
 }
