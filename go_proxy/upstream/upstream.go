@@ -183,7 +183,7 @@ func handeInitializationFailure(initializationError error, cmd *exec.Cmd) (error
 	return initializationError.Error()
 }
 
-func Start(ctx context.Context, command Command) (*Upstream, error) {
+func New(ctx context.Context, command Command) (*Upstream, error) {
 	cmd := exec.Command("dlv", constructArgv(command)...)
 
 	stdout, stderr, err := createPipes(cmd)

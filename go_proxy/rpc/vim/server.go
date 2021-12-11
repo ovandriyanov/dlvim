@@ -59,7 +59,7 @@ func (s *Server) InitializeUpstream(command upstream.Command) (err error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	s.upstream, err = upstream.Start(ctx, command)
+	s.upstream, err = upstream.New(ctx, command)
 	if err != nil {
 		return xerrors.Errorf("cannot start dlv: %w", err)
 	}
