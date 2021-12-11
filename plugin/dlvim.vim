@@ -15,12 +15,12 @@ function! s:create_buffer(subtab_name, session) abort
     return l:bufnr
 endfunction
 
-function! s:create_log_buffer(subtab_name, session) abort
+function! s:create_terminal_buffer(subtab_name, command_factory, session) abort
     execute 'terminal'
     \  '++curwin'
     \  '++kill=TERM'
     \  '++noclose'
-    \  printf('tail -n +1 -f %s', a:session.proxy_log_file)
+    \  a:command_factory(a:session)
     call s:setup_subtab_buffer(bufnr(), a:session, a:subtab_name)
     return bufnr()
 endfunction
@@ -34,15 +34,26 @@ let s:subtabs = {
 \         'index': 1,
 \         'create_buffer': function(funcref(expand('<SID>') .. 'create_buffer'), ['stack']),
 \     },
-\     'log': {
+\     'console': {
 \         'index': 2,
-\         'create_buffer': function(funcref(expand('<SID>') .. 'create_log_buffer'), ['log']),
+\         'create_buffer': function(funcref(expand('<SID>') .. 'create_terminal_buffer'), [
+\             'console',
+\             {session -> 'bash -c "while true; do date; sleep 2; done"'},
+\         ]),
+\     },
+\     'log': {
+\         'index': 3,
+\         'create_buffer': function(funcref(expand('<SID>') .. 'create_terminal_buffer'), [
+\             'log',
+\             {session -> printf('tail -n +1 -f %s', session.proxy_log_file)},
+\         ]),
 \     },
 \ }
 
 let s:subtab_names = [
 \     'breakpoints',
 \     'stack',
+\     'console',
 \     'log',
 \ ]
 
