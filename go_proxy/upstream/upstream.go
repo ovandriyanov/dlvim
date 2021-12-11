@@ -175,7 +175,7 @@ func handeInitializationFailure(initializationError error, cmd *exec.Cmd) (error
 	var exitErr *exec.ExitError
 	if xerrors.As(terminateErr, &exitErr) {
 		if strings.Contains(exitErr.Error(), "interrupt") {
-			return initializationError.Error() // that is more descriptive
+			return initializationError.Error() // that happens to be more descriptive
 		}
 		return exitErr.Error()
 	}
