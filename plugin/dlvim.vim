@@ -50,7 +50,7 @@ let s:seed = srand()
 
 function! s:format_subtabs_for_status_line(window_id) abort
     let l:formatted_subtab_names = []
-    for l:subtab_name in keys(s:subtabs)
+    for l:subtab_name in s:subtab_names
         let l:subtab_bufnr = b:dlvim.session.buffers[l:subtab_name]
         if winbufnr(a:window_id) ==# l:subtab_bufnr
             let l:formatted_subtab_name = '%#ModeMsg#' .. l:subtab_name .. '%#StatusLine#'
