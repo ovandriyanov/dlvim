@@ -16,7 +16,6 @@ function! s:create_buffer(subtab_name, session) abort
 endfunction
 
 function! s:create_log_buffer(subtab_name, session) abort
-    let l:buffer_name = s:uniqualize_name(a:session.id, a:subtab_name)
     execute 'terminal'
     \  '++curwin'
     \  '++kill=TERM'
