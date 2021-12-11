@@ -192,8 +192,6 @@ func New(ctx context.Context, command Command) (*Upstream, error) {
 	}
 
 	if err := cmd.Start(); err != nil {
-		_ = stdout.Close()
-		_ = stderr.Close()
 		return nil, xerrors.Errorf("cannot start process: %w", err)
 	}
 	log.Printf("upstream started, pid %d\n", cmd.Process.Pid)
