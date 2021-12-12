@@ -188,12 +188,23 @@ function! s:create_proxy_job(dlv_argv, proxy_log_file) abort
     \      'err_name':  a:proxy_log_file,
     \ }
     let l:job = job_start(s:proxy_path, l:job_options)
+
     let l:init_response = ch_evalexpr(l:job, ['Initialize', {'dlv_argv': a:dlv_argv}])
     if has_key(l:init_response, 'Error')
         throw printf('proxy initialization failed: %s', l:init_response.Error)
     endif
     let l:proxy_listen_address = l:init_response.proxy_listen_address
+
+    call ch_sendexpr(l:job, ['GetNextEvent', {}], {'callback': expand('<SID>') .. 'on_next_event'})
     return [l:job, l:proxy_listen_address]
+endfunction
+
+function! s:on_next_event(channel, event) abort
+    try
+        echom 'EVENT: ' .. json_encode(a:event)
+    finally
+        call ch_sendexpr(a:channel, ['GetNextEvent', {}], {'callback': expand('<SID>') .. 'on_next_event'})
+    endtry
 endfunction
 
 function! s:create_session(dlv_argv) abort
