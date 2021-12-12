@@ -34,10 +34,6 @@ func init() {
 	}
 }
 
-func NewRPCHandler(server *Server) *RPCHandler {
-	return &RPCHandler{server: server}
-}
-
 func (h *RPCHandler) Foo(req map[string]interface{}, resp *map[string]interface{}) error {
 	(*resp)["foo"] = "bar"
 	return nil
@@ -75,4 +71,8 @@ func (h *RPCHandler) Initialize(req map[string]interface{}, resp *map[string]int
 	(*resp)["proxy_listen_address"] = inventory.ProxyListenAddress().String()
 
 	return nil
+}
+
+func NewRPCHandler(server *Server) *RPCHandler {
+	return &RPCHandler{server: server}
 }
