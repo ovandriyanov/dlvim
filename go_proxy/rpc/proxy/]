@@ -81,6 +81,7 @@ func (h *RPCHandler) AmendBreakpoint(req map[string]interface{}, resp *map[strin
 }
 
 func (h *RPCHandler) ClearBreakpoint(req map[string]interface{}, resp *map[string]interface{}) error {
+	return h.defaultHandler(fqmn("ClearBreakpoint"), req, resp)
 	err := h.defaultHandler(fqmn("ClearBreakpoint"), req, resp)
 	if err != nil {
 		return err
