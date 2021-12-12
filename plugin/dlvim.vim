@@ -38,7 +38,7 @@ let s:subtabs = {
 \         'index': 2,
 \         'create_buffer': function(funcref(expand('<SID>') .. 'create_terminal_buffer'), [
 \             'console',
-\             {session -> 'bash -c "while true; do date; sleep 2; done"'},
+\             {session -> 'dlv connect ' .. session.proxy_listen_address},
 \         ]),
 \     },
 \     'log': {
@@ -192,18 +192,20 @@ function! s:create_proxy_job(dlv_argv, proxy_log_file) abort
     if has_key(l:init_response, 'Error')
         throw printf('proxy initialization failed: %s', l:init_response.Error)
     endif
-    return l:job
+    let l:proxy_listen_address = l:init_response.proxy_listen_address
+    return [l:job, l:proxy_listen_address]
 endfunction
 
 function! s:create_session(dlv_argv) abort
     let l:proxy_log_file = tempname()
-    let l:proxy_job = s:create_proxy_job(a:dlv_argv, l:proxy_log_file)
+    let [l:proxy_job, l:proxy_listen_address] = s:create_proxy_job(a:dlv_argv, l:proxy_log_file)
 
     let l:session = {
-    \   'id':              rand(s:seed),
-    \   'proxy_job':       l:proxy_job,
-    \   'proxy_log_file':  l:proxy_log_file,
-    \   'buffers':         {},
+    \   'id':                         rand(s:seed),
+    \   'proxy_job':                  l:proxy_job,
+    \   'proxy_listen_address':       l:proxy_listen_address,
+    \   'proxy_log_file':             l:proxy_log_file,
+    \   'buffers':                    {},
     \ }
     let l:session.buffers = s:create_buffers(l:session)
 
