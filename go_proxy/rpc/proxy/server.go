@@ -37,6 +37,10 @@ func (s *Server) Error() <-chan error {
 	return s.acceptErrCh
 }
 
+func (s *Server) ListenAddress() net.Addr {
+	return s.listener.Addr()
+}
+
 type clientHandler func(rootCtx context.Context, clientConn io.ReadWriteCloser)
 
 func (s *Server) acceptClients() {
@@ -86,10 +90,10 @@ func (s *Server) handleClient(ctx context.Context, clientConn io.ReadWriteCloser
 	}
 }
 
-func NewServer(dlvAddress string) (*Server, net.Addr, error) {
+func NewServer(dlvAddress string) (*Server, error) {
 	listener, err := net.Listen("tcp", "localhost:")
 	if err != nil {
-		return nil, nil, xerrors.Errorf("listen: %w", err)
+		return nil, xerrors.Errorf("listen: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -104,5 +108,5 @@ func NewServer(dlvAddress string) (*Server, net.Addr, error) {
 	}
 	go server.acceptClients()
 
-	return server, listener.Addr(), nil
+	return server, nil
 }

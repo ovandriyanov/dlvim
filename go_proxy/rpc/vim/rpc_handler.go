@@ -68,5 +68,11 @@ func (h *RPCHandler) Initialize(req map[string]interface{}, resp *map[string]int
 		return xerrors.Errorf("'dlv_argv' is invalid: %w", err)
 	}
 
-	return h.server.Initialize(command)
+	inventory, err := h.server.Initialize(command)
+	if err != nil {
+		return err
+	}
+	(*resp)["proxy_listen_address"] = inventory.ProxyListenAddress().String()
+
+	return nil
 }

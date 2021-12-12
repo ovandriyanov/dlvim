@@ -49,22 +49,22 @@ func (s *Server) HandleClient(ctx context.Context, clientConn io.ReadWriteCloser
 	}
 }
 
-func (s *Server) Initialize(command upstream.Command) (err error) {
+func (s *Server) Initialize(command upstream.Command) (inventory *inventory, err error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	if s.inventory != nil {
-		return xerrors.New("already initialized")
+		return nil, xerrors.New("already initialized")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	s.inventory, err = NewInventory(ctx, command)
 	if err != nil {
-		return xerrors.Errorf("cannot start dlv: %w", err)
+		return nil, xerrors.Errorf("cannot start dlv: %w", err)
 	}
 
-	return nil
+	return s.inventory, nil
 }
 
 func NewServer() *Server {
