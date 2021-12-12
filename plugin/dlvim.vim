@@ -224,7 +224,7 @@ function! s:setup_dlvim_window(window_id, session) abort
 
     let l:old_eventignore=&eventignore
     set eventignore=BufWinLeave
-    call win_execute(a:window_id, printf('buffer %d', a:session['buffers'][s:subtab_names[0]]))
+    call win_execute(a:window_id, printf('buffer %d', a:session.buffers[s:subtab_names[0]]))
     let &eventignore = l:old_eventignore
 endfunction
 
