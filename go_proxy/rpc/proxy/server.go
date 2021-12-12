@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/ovandriyanov/dlvim/go_proxy/common"
+	"github.com/ovandriyanov/dlvim/go_proxy/vimevent"
 	"golang.org/x/xerrors"
 )
 
@@ -20,6 +21,7 @@ type Server struct {
 	ctx         context.Context
 	cancelCtx   func()
 	clientsWg   sync.WaitGroup
+	events      chan<- vimevent.Event
 }
 
 func (s *Server) Stop() {
@@ -40,8 +42,6 @@ func (s *Server) Error() <-chan error {
 func (s *Server) ListenAddress() net.Addr {
 	return s.listener.Addr()
 }
-
-type clientHandler func(rootCtx context.Context, clientConn io.ReadWriteCloser)
 
 func (s *Server) acceptClients() {
 	defer close(s.acceptErrCh)
@@ -74,7 +74,7 @@ func (s *Server) handleClient(ctx context.Context, clientConn io.ReadWriteCloser
 
 	dlvClient := jsonrpc.NewClient(dlvConn)
 	srv := rpc.NewServer()
-	srv.RegisterName(ServiceName, NewRPCHandler(dlvClient))
+	srv.RegisterName(ServiceName, NewRPCHandler(dlvClient, s.events, ctx))
 	rpcDone := make(chan struct{})
 	go func() {
 		srv.ServeCodec(NewRPCCodec(clientConn, dlvClient))
@@ -90,7 +90,7 @@ func (s *Server) handleClient(ctx context.Context, clientConn io.ReadWriteCloser
 	}
 }
 
-func NewServer(dlvAddress string) (*Server, error) {
+func NewServer(dlvAddress string, events chan<- vimevent.Event) (*Server, error) {
 	listener, err := net.Listen("tcp", "localhost:")
 	if err != nil {
 		return nil, xerrors.Errorf("listen: %w", err)
@@ -105,6 +105,7 @@ func NewServer(dlvAddress string) (*Server, error) {
 		ctx:         ctx,
 		cancelCtx:   cancel,
 		clientsWg:   sync.WaitGroup{},
+		events:      events,
 	}
 	go server.acceptClients()
 

@@ -1,12 +1,15 @@
 package proxy
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"net/rpc"
 	"reflect"
+
+	"github.com/ovandriyanov/dlvim/go_proxy/vimevent"
 )
 
 const ServiceName = "RPCServer" // Dlv client expects that service name
@@ -32,7 +35,9 @@ func init() {
 }
 
 type RPCHandler struct {
+	ctx       context.Context
 	dlvClient *rpc.Client
+	events    chan<- vimevent.Event
 }
 
 func (h *RPCHandler) defaultHandler(method string, req map[string]interface{}, resp *map[string]interface{}) error {
@@ -51,6 +56,34 @@ func (h *RPCHandler) defaultHandler(method string, req map[string]interface{}, r
 	return err
 }
 
-func NewRPCHandler(dlvClient *rpc.Client) *RPCHandler {
-	return &RPCHandler{dlvClient: dlvClient}
+func (h *RPCHandler) CreateBreakpoint(req map[string]interface{}, resp *map[string]interface{}) error {
+	err := h.defaultHandler(fqmn("CreateBreakpoint"), req, resp)
+	if err != nil {
+		return err
+	}
+	select {
+	case h.events <- &vimevent.BreakpointsUpdated{}:
+	case <-h.ctx.Done():
+	}
+	return nil
+}
+
+func (h *RPCHandler) AmendBreakpoint(req map[string]interface{}, resp *map[string]interface{}) error {
+	err := h.defaultHandler(fqmn("AmendBreakpoint"), req, resp)
+	if err != nil {
+		return err
+	}
+	select {
+	case h.events <- &vimevent.BreakpointsUpdated{}:
+	case <-h.ctx.Done():
+	}
+	return nil
+}
+
+func NewRPCHandler(dlvClient *rpc.Client, events chan<- vimevent.Event, ctx context.Context) *RPCHandler {
+	return &RPCHandler{
+		dlvClient: dlvClient,
+		events:    events,
+		ctx:       ctx,
+	}
 }

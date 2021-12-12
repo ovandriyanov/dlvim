@@ -36,10 +36,6 @@ func (h *RPCHandler) FindLocation(req map[string]interface{}, resp *map[string]i
 	return h.defaultHandler(fqmn("FindLocation"), req, resp)
 }
 
-func (h *RPCHandler) CreateBreakpoint(req map[string]interface{}, resp *map[string]interface{}) error {
-	return h.defaultHandler(fqmn("CreateBreakpoint"), req, resp)
-}
-
 func (h *RPCHandler) LastModified(req map[string]interface{}, resp *map[string]interface{}) error {
 	return h.defaultHandler(fqmn("LastModified"), req, resp)
 }
@@ -62,10 +58,6 @@ func (h *RPCHandler) Eval(req map[string]interface{}, resp *map[string]interface
 
 func (h *RPCHandler) GetBreakpoint(req map[string]interface{}, resp *map[string]interface{}) error {
 	return h.defaultHandler(fqmn("GetBreakpoint"), req, resp)
-}
-
-func (h *RPCHandler) AmendBreakpoint(req map[string]interface{}, resp *map[string]interface{}) error {
-	return h.defaultHandler(fqmn("AmendBreakpoint"), req, resp)
 }
 
 func (h *RPCHandler) ListBreakpoints(req map[string]interface{}, resp *map[string]interface{}) error {

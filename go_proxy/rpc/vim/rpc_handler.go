@@ -1,12 +1,14 @@
 package vim
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"reflect"
 
 	"github.com/ovandriyanov/dlvim/go_proxy/upstream"
 	_ "github.com/ovandriyanov/dlvim/go_proxy/upstream/command"
+	"github.com/ovandriyanov/dlvim/go_proxy/vimevent"
 	"golang.org/x/xerrors"
 )
 
@@ -14,6 +16,7 @@ const ServiceName = "Dlvim"
 
 type RPCHandler struct {
 	server *Server
+	ctx    context.Context
 }
 
 func fqmn(method string) string {
@@ -73,6 +76,22 @@ func (h *RPCHandler) Initialize(req map[string]interface{}, resp *map[string]int
 	return nil
 }
 
-func NewRPCHandler(server *Server) *RPCHandler {
-	return &RPCHandler{server: server}
+func (h *RPCHandler) GetNextEvent(req map[string]interface{}, resp *map[string]interface{}) error {
+	var event vimevent.Event
+	select {
+	case event = <-h.server.events:
+	case <-h.ctx.Done():
+		return context.Canceled
+	}
+
+	(*resp)["kind"] = event.Kind()
+	(*resp)["payload"] = event
+	return nil
+}
+
+func NewRPCHandler(server *Server, ctx context.Context) *RPCHandler {
+	return &RPCHandler{
+		server: server,
+		ctx:    ctx,
+	}
 }

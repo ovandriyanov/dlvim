@@ -8,10 +8,12 @@ import (
 	"time"
 
 	"github.com/ovandriyanov/dlvim/go_proxy/upstream"
+	"github.com/ovandriyanov/dlvim/go_proxy/vimevent"
 	"golang.org/x/xerrors"
 )
 
 type Server struct {
+	events    chan vimevent.Event
 	mutex     sync.Mutex
 	inventory *inventory
 }
@@ -32,7 +34,7 @@ func (s *Server) HandleClient(ctx context.Context, clientConn io.ReadWriteCloser
 
 	rpcDone := make(chan struct{})
 	srv := rpc.NewServer()
-	rpcHandler := NewRPCHandler(s)
+	rpcHandler := NewRPCHandler(s, ctx)
 	srv.RegisterName(ServiceName, rpcHandler)
 	go func() {
 		srv.ServeCodec(NewRPCCodec(clientConn))
@@ -59,7 +61,7 @@ func (s *Server) Initialize(command upstream.Command) (inventory *inventory, err
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	s.inventory, err = NewInventory(ctx, command)
+	s.inventory, err = NewInventory(ctx, command, s.events)
 	if err != nil {
 		return nil, err
 	}
@@ -69,6 +71,7 @@ func (s *Server) Initialize(command upstream.Command) (inventory *inventory, err
 
 func NewServer() *Server {
 	return &Server{
+		events:    make(chan vimevent.Event),
 		mutex:     sync.Mutex{},
 		inventory: nil,
 	}
