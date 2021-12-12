@@ -61,7 +61,7 @@ func (s *Server) Initialize(command upstream.Command) (inventory *inventory, err
 	defer cancel()
 	s.inventory, err = NewInventory(ctx, command)
 	if err != nil {
-		return nil, xerrors.Errorf("cannot start dlv: %w", err)
+		return nil, err
 	}
 
 	return s.inventory, nil
