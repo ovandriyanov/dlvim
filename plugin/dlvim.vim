@@ -209,7 +209,6 @@ endfunction
 
 function! s:on_next_event(session, channel, event) abort
     try
-        echom 'EVENT: ' .. json_encode(a:event)
         call s:event_handlers[a:event.kind](a:session, a:event.payload)
     finally
         call ch_sendexpr(a:channel, ['GetNextEvent', {}], {'callback': function(funcref(expand('<SID>') .. 'on_next_event'), [a:session])})
