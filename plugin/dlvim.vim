@@ -61,7 +61,25 @@ let s:subtabs = {
 " endfunction
 
 function! s:on_breakpoints_updated(session, event_payload) abort
-    echom 'BREAKPOINTS UPDATED!'
+    let l:response = ch_evalexpr(a:session.proxy_job, ['GetBreakpoints', {}])
+    if has_key(l:response, 'Error')
+        throw printf('cannot get breakpoints: %s', l:response.Error)
+    endif
+    let a:session['breakpoints'] = l:response.breakpoints
+
+    call s:update_breakpoints_buffer(a:session)
+endfunction
+
+function! s:update_breakpoints_buffer(session) abort
+    let l:previous_window_id = win_getid()
+    new
+    let l:scratch_window_id = win_getid()
+    execute 'buffer' a:session.buffers.breakpoints
+    execute '%delete'
+    0put a:session.breakpoints
+    $delete
+    call win_execute(l:scratch_window_id, 'close')
+    call win_gotoid(l:previous_window_id)
 endfunction
 
 let s:event_handlers = {
