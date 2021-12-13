@@ -50,6 +50,16 @@ let s:subtabs = {
 \     },
 \ }
 
+" function! s:go_to_code_window(session) abort
+"     let [l:tabnr, l:winnr] = win_id2tabwin(a:session.code_window_id)
+"     if [l:tabnr, l:winnr] == [0, 0]
+"         new
+"         let a:session.code_window_id = win_getid()
+"     else
+"         call win_gotoid(a:session.code_window_id)
+"     endif
+" endfunction
+
 function! s:on_breakpoints_updated(session, event_payload) abort
     echom 'BREAKPOINTS UPDATED!'
 endfunction
