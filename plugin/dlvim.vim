@@ -50,6 +50,14 @@ let s:subtabs = {
 \     },
 \ }
 
+function! s:on_breakpoints_updated(session, event_payload) abort
+    echom 'BREAKPOINTS UPDATED!'
+endfunction
+
+let s:event_handlers = {
+\     'BREAKPOINTS_UPDATED': funcref(expand('<SID>') .. 'on_breakpoints_updated'),
+\ }
+
 let s:subtab_names = [
 \     'breakpoints',
 \     'stack',
@@ -181,7 +189,7 @@ function! s:create_buffers(session)
     return l:buffers
 endfunction
 
-function! s:create_proxy_job(dlv_argv, proxy_log_file) abort
+function! s:create_proxy_job(session, dlv_argv, proxy_log_file) abort
     let l:job_options = {
     \      'mode':      'json',
     \      'err_io':    'file',
@@ -195,29 +203,33 @@ function! s:create_proxy_job(dlv_argv, proxy_log_file) abort
     endif
     let l:proxy_listen_address = l:init_response.proxy_listen_address
 
-    call ch_sendexpr(l:job, ['GetNextEvent', {}], {'callback': expand('<SID>') .. 'on_next_event'})
+    call ch_sendexpr(l:job, ['GetNextEvent', {}], {'callback': function(funcref(expand('<SID>') .. 'on_next_event'), [a:session])})
     return [l:job, l:proxy_listen_address]
 endfunction
 
-function! s:on_next_event(channel, event) abort
+function! s:on_next_event(session, channel, event) abort
     try
         echom 'EVENT: ' .. json_encode(a:event)
+        call s:event_handlers[a:event.kind](a:session, a:event.payload)
     finally
-        call ch_sendexpr(a:channel, ['GetNextEvent', {}], {'callback': expand('<SID>') .. 'on_next_event'})
+        call ch_sendexpr(a:channel, ['GetNextEvent', {}], {'callback': function(funcref(expand('<SID>') .. 'on_next_event'), [a:session])})
     endtry
 endfunction
 
 function! s:create_session(dlv_argv) abort
     let l:proxy_log_file = tempname()
-    let [l:proxy_job, l:proxy_listen_address] = s:create_proxy_job(a:dlv_argv, l:proxy_log_file)
-
     let l:session = {
     \   'id':                         rand(s:seed),
-    \   'proxy_job':                  l:proxy_job,
-    \   'proxy_listen_address':       l:proxy_listen_address,
+    \   'proxy_job':                  v:null,
+    \   'proxy_listen_address':       v:null,
     \   'proxy_log_file':             l:proxy_log_file,
-    \   'buffers':                    {},
+    \   'buffers':                    v:null,
     \ }
+
+    let [l:proxy_job, l:proxy_listen_address] = s:create_proxy_job(l:session, a:dlv_argv, l:proxy_log_file)
+
+    let l:session.proxy_job = l:proxy_job
+    let l:session.proxy_listen_address = l:proxy_listen_address
     let l:session.buffers = s:create_buffers(l:session)
 
     return l:session
