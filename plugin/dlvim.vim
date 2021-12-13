@@ -224,6 +224,7 @@ function! s:create_session(dlv_argv) abort
     \   'proxy_listen_address':       v:null,
     \   'proxy_log_file':             l:proxy_log_file,
     \   'buffers':                    v:null,
+    \   'code_window_id':             win_getid(),
     \ }
 
     let [l:proxy_job, l:proxy_listen_address] = s:create_proxy_job(l:session, a:dlv_argv, l:proxy_log_file)
