@@ -13,7 +13,9 @@ import (
 	"golang.org/x/xerrors"
 )
 
-const ServiceName = "Dlvim"
+const (
+	ServiceName = "Dlvim"
+)
 
 type RPCHandler struct {
 	server *Server
@@ -81,7 +83,53 @@ func (h *RPCHandler) ListBreakpoints(req map[string]interface{}, resp *map[strin
 	if h.server.inventory == nil {
 		return xerrors.New("not initialized")
 	}
-	return h.server.inventory.upstreamClient.Call(dlv.FQMN("ListBreakpoints"), req, resp)
+	if err := h.server.inventory.upstreamClient.Call(dlv.FQMN("ListBreakpoints"), req, resp); err != nil {
+		return err
+	}
+	clearDefaultBreakpoints(*resp)
+	return nil
+}
+
+func clearDefaultBreakpoints(listBreakpointsResponse map[string]interface{}) {
+	breakpointsTypeErased, ok := listBreakpointsResponse["Breakpoints"]
+	if !ok {
+		log.Println("WARNING: no \"Breakpoints\" key found in the dlv ListBreakpoints response")
+		return
+	}
+	breakpoints, ok := breakpointsTypeErased.([]interface{})
+	if !ok {
+		log.Printf("WARNING: expected \"Breakpoints\" to be a list, not %T\n", breakpointsTypeErased)
+		return
+	}
+
+	j := len(breakpoints)
+	for i := 0; i < j; {
+		breakpoint, ok := breakpoints[i].(map[string]interface{})
+		if !ok {
+			log.Printf("WARNING: expected Breakpoints[%d] to be a map[string]interface{}, not %T\n", i, breakpoints[i])
+			i++
+			continue
+		}
+		idTypeErased, ok := breakpoint["id"]
+		if !ok {
+			log.Printf("WARNING: Breakpoints[%d] has no field named \"id\"\n", i)
+			i++
+			continue
+		}
+		id, ok := idTypeErased.(float64) // TODO: use json.Number or something
+		if !ok {
+			log.Printf("WARNING: expected Breakpoints[%d].name to be an int, not %T\n", i, idTypeErased)
+			i++
+			continue
+		}
+		if id >= 0 {
+			i++
+			continue
+		}
+		breakpoints[i], breakpoints[j-1] = breakpoints[j-1], breakpoints[i]
+		j--
+	}
+	listBreakpointsResponse["Breakpoints"] = breakpoints[:j]
 }
 
 func (h *RPCHandler) GetNextEvent(req map[string]interface{}, resp *map[string]interface{}) error {

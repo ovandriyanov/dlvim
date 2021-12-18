@@ -73,7 +73,9 @@ endfunction
 function! s:update_breakpoints_buffer(session) abort
     let l:breakpoints_buffer = a:session.buffers.breakpoints
     call deletebufline(l:breakpoints_buffer, 1, '$') " Delete everything
-    call appendbufline(l:breakpoints_buffer, 0, json_encode(a:session.breakpoints))
+    for l:breakpoint in a:session.breakpoints
+        call appendbufline(l:breakpoints_buffer, 0, json_encode(l:breakpoint))
+    endfor
     call deletebufline(l:breakpoints_buffer, '$') " Delete last line
 endfunction
 
