@@ -10,9 +10,9 @@ sign define DlvimBreakpoint text=●
 function! s:create_buffer(subtab_name, session) abort
     let l:buffer_name = s:uniqualize_name(a:session.id, a:subtab_name)
     execute 'badd' l:buffer_name
-    let l:bufnr = bufnr(l:buffer_name)
-    call s:setup_subtab_buffer(l:bufnr, a:session, a:subtab_name)
-    return {'number': l:bufnr}
+    let l:buffer = {'number': bufnr(l:buffer_name), 'windows': {}}
+    call s:setup_subtab_buffer(l:buffer, a:session, a:subtab_name)
+    return l:buffer
 endfunction
 
 function! s:create_terminal_buffer(subtab_name, command_factory, session) abort
@@ -21,8 +21,9 @@ function! s:create_terminal_buffer(subtab_name, command_factory, session) abort
     \  '++kill=TERM'
     \  '++noclose'
     \  a:command_factory(a:session)
-    call s:setup_subtab_buffer(bufnr(), a:session, a:subtab_name)
-    return {'number': bufnr()}
+    let l:buffer = {'number': bufnr(), 'windows': {}}
+    call s:setup_subtab_buffer(l:buffer, a:session, a:subtab_name)
+    return l:buffer
 endfunction
 
 let s:subtabs = {
@@ -71,12 +72,33 @@ function! s:on_breakpoints_updated(session, event_payload) abort
 endfunction
 
 function! s:update_breakpoints_buffer(session) abort
+    " Save window cursor positions
+    let l:winnr = 0
+    let l:breakpoint_window_cursor_positions = {}
+    for l:bufnr in tabpagebuflist()
+        let l:winnr += 1
+        let l:dlvim = getbufvar(l:bufnr, 'dlvim', v:null)
+        if type(l:dlvim) == type(v:null) || l:dlvim.subtab_name !=# 'breakpoints'
+            continue
+        endif
+        let l:breakpoint_window_cursor_positions[l:winnr] = getcurpos(l:winnr)[1:]
+    endfor
+
+    " Update the buffer
     let l:breakpoints_buffer = a:session.buffers.breakpoints.number
     call deletebufline(l:breakpoints_buffer, 1, '$') " Delete everything
     for l:breakpoint in a:session.breakpoints
         call appendbufline(l:breakpoints_buffer, 0, json_encode(l:breakpoint))
     endfor
     call deletebufline(l:breakpoints_buffer, '$') " Delete the last line
+
+    " Restore window cursor positions
+    let l:old_window_id = win_getid()
+    for [l:winnr, l:cursor_position] in items(l:breakpoint_window_cursor_positions)
+        call win_gotoid(win_getid(l:winnr))
+        call cursor(l:cursor_position)
+    endfor
+    call win_gotoid(l:old_window_id)
 endfunction
 
 let s:event_handlers = {
@@ -170,18 +192,19 @@ function! s:collect_garbage(bufnr_being_left) abort
     echo 'Dlvim exited'
 endfunction
 
-function! s:setup_subtab_buffer(bufnr, session, subtab_name) abort
-    call setbufvar(a:bufnr, '&bufhidden', 'hide')
-    call setbufvar(a:bufnr, '&buflisted', '0')
-    if getbufvar(a:bufnr, '&buftype') !=# 'terminal'
-        call setbufvar(a:bufnr, '&buftype', 'nofile')
+function! s:setup_subtab_buffer(buffer, session, subtab_name) abort
+    let l:bufnr = a:buffer.number
+    call setbufvar(l:bufnr, '&bufhidden', 'hide')
+    call setbufvar(l:bufnr, '&buflisted', '0')
+    if getbufvar(l:bufnr, '&buftype') !=# 'terminal'
+        call setbufvar(l:bufnr, '&buftype', 'nofile')
     endif
-    call setbufvar(a:bufnr, 'dlvim', {
+    call setbufvar(l:bufnr, 'dlvim', {
     \     'session':     a:session,
     \     'subtab_name': a:subtab_name,
     \ })
 
-    execute 'buffer' a:bufnr
+    execute 'buffer' l:bufnr
 
     let l:rotate_subtab_function_name = expand('<SID>') .. 'rotate_subtab'
     execute printf('nnoremap <buffer> <C-l> :call %s("right")<Cr>', l:rotate_subtab_function_name)
