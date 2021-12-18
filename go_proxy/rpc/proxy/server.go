@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/ovandriyanov/dlvim/go_proxy/common"
+	"github.com/ovandriyanov/dlvim/go_proxy/rpc/dlv"
 	"github.com/ovandriyanov/dlvim/go_proxy/vimevent"
 	"golang.org/x/xerrors"
 )
@@ -74,7 +75,7 @@ func (s *Server) handleClient(ctx context.Context, clientConn io.ReadWriteCloser
 
 	dlvClient := jsonrpc.NewClient(dlvConn)
 	srv := rpc.NewServer()
-	srv.RegisterName(ServiceName, NewRPCHandler(dlvClient, s.events, ctx))
+	srv.RegisterName(dlv.ServiceName, NewRPCHandler(dlvClient, s.events, ctx))
 	rpcDone := make(chan struct{})
 	go func() {
 		srv.ServeCodec(NewRPCCodec(clientConn, dlvClient))

@@ -6,6 +6,7 @@ import (
 	"log"
 	"reflect"
 
+	"github.com/ovandriyanov/dlvim/go_proxy/rpc/dlv"
 	"github.com/ovandriyanov/dlvim/go_proxy/upstream"
 	_ "github.com/ovandriyanov/dlvim/go_proxy/upstream/command"
 	"github.com/ovandriyanov/dlvim/go_proxy/vimevent"
@@ -74,6 +75,13 @@ func (h *RPCHandler) Initialize(req map[string]interface{}, resp *map[string]int
 	(*resp)["proxy_listen_address"] = inventory.ProxyListenAddress().String()
 
 	return nil
+}
+
+func (h *RPCHandler) ListBreakpoints(req map[string]interface{}, resp *map[string]interface{}) error {
+	if h.server.inventory == nil {
+		return xerrors.New("not initialized")
+	}
+	return h.server.inventory.upstreamClient.Call(dlv.FQMN("ListBreakpoints"), req, resp)
 }
 
 func (h *RPCHandler) GetNextEvent(req map[string]interface{}, resp *map[string]interface{}) error {

@@ -4,23 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"log"
 	"net/rpc"
 	"reflect"
 
+	"github.com/ovandriyanov/dlvim/go_proxy/rpc/dlv"
 	"github.com/ovandriyanov/dlvim/go_proxy/vimevent"
 )
-
-const ServiceName = "RPCServer" // Dlv client expects that service name
 
 var KnownMethods map[string]struct{}
 
 var debugRPC = flag.Bool("debug-rpc", false, "Show full requests and responses sent between dlv and the proxy")
-
-func fqmn(method string) string {
-	return fmt.Sprintf("%s.%s", ServiceName, method)
-}
 
 func init() {
 	KnownMethods = make(map[string]struct{})
@@ -28,7 +22,7 @@ func init() {
 	log.Println("Known methods:")
 	for i := 0; i < handlerType.NumMethod(); i++ {
 		method := handlerType.Method(i)
-		knownMethodName := fqmn(method.Name)
+		knownMethodName := dlv.FQMN(method.Name)
 		KnownMethods[knownMethodName] = struct{}{}
 		log.Printf("    %s\n", knownMethodName)
 	}
@@ -57,7 +51,7 @@ func (h *RPCHandler) defaultHandler(method string, req map[string]interface{}, r
 }
 
 func (h *RPCHandler) CreateBreakpoint(req map[string]interface{}, resp *map[string]interface{}) error {
-	err := h.defaultHandler(fqmn("CreateBreakpoint"), req, resp)
+	err := h.defaultHandler(dlv.FQMN("CreateBreakpoint"), req, resp)
 	if err != nil {
 		return err
 	}
@@ -69,7 +63,7 @@ func (h *RPCHandler) CreateBreakpoint(req map[string]interface{}, resp *map[stri
 }
 
 func (h *RPCHandler) AmendBreakpoint(req map[string]interface{}, resp *map[string]interface{}) error {
-	err := h.defaultHandler(fqmn("AmendBreakpoint"), req, resp)
+	err := h.defaultHandler(dlv.FQMN("AmendBreakpoint"), req, resp)
 	if err != nil {
 		return err
 	}
@@ -81,7 +75,7 @@ func (h *RPCHandler) AmendBreakpoint(req map[string]interface{}, resp *map[strin
 }
 
 func (h *RPCHandler) ClearBreakpoint(req map[string]interface{}, resp *map[string]interface{}) error {
-	err := h.defaultHandler(fqmn("ClearBreakpoint"), req, resp)
+	err := h.defaultHandler(dlv.FQMN("ClearBreakpoint"), req, resp)
 	if err != nil {
 		return err
 	}
