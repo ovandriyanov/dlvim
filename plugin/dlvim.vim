@@ -61,25 +61,20 @@ let s:subtabs = {
 " endfunction
 
 function! s:on_breakpoints_updated(session, event_payload) abort
-    let l:response = ch_evalexpr(a:session.proxy_job, ['GetBreakpoints', {}])
+    let l:response = ch_evalexpr(a:session.proxy_job, ['ListBreakpoints', {}])
     if has_key(l:response, 'Error')
-        throw printf('cannot get breakpoints: %s', l:response.Error)
+        throw printf('cannot list breakpoints: %s', l:response.Error)
     endif
-    let a:session['breakpoints'] = l:response.breakpoints
+    let a:session['breakpoints'] = l:response.Breakpoints
 
     call s:update_breakpoints_buffer(a:session)
 endfunction
 
 function! s:update_breakpoints_buffer(session) abort
-    let l:previous_window_id = win_getid()
-    new
-    let l:scratch_window_id = win_getid()
-    execute 'buffer' a:session.buffers.breakpoints
-    execute '%delete'
-    0put a:session.breakpoints
-    $delete
-    call win_execute(l:scratch_window_id, 'close')
-    call win_gotoid(l:previous_window_id)
+    let l:breakpoints_buffer = a:session.buffers.breakpoints
+    call deletebufline(l:breakpoints_buffer, 1, '$') " Delete everything
+    call appendbufline(l:breakpoints_buffer, 0, json_encode(a:session.breakpoints))
+    call deletebufline(l:breakpoints_buffer, '$') " Delete last line
 endfunction
 
 let s:event_handlers = {
@@ -223,7 +218,7 @@ function! s:create_proxy_job(session, dlv_argv, proxy_log_file) abort
     \      'err_io':    'file',
     \      'err_name':  a:proxy_log_file,
     \ }
-    let l:job = job_start(s:proxy_path, l:job_options)
+    let l:job = job_start([s:proxy_path, '--debug-rpc'], l:job_options)
 
     let l:init_response = ch_evalexpr(l:job, ['Initialize', {'dlv_argv': a:dlv_argv}])
     if has_key(l:init_response, 'Error')
@@ -236,6 +231,11 @@ function! s:create_proxy_job(session, dlv_argv, proxy_log_file) abort
 endfunction
 
 function! s:on_next_event(session, channel, event) abort
+    if !has_key(s:event_handlers, a:event.kind)
+        echom 'Unhandled event: ' .. a:event.kind
+        return
+    endif
+
     try
         call s:event_handlers[a:event.kind](a:session, a:event.payload)
     finally
