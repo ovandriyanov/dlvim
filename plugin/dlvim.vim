@@ -12,7 +12,7 @@ function! s:create_buffer(subtab_name, session) abort
     execute 'badd' l:buffer_name
     let l:bufnr = bufnr(l:buffer_name)
     call s:setup_subtab_buffer(l:bufnr, a:session, a:subtab_name)
-    return l:bufnr
+    return {'number': l:bufnr}
 endfunction
 
 function! s:create_terminal_buffer(subtab_name, command_factory, session) abort
@@ -22,7 +22,7 @@ function! s:create_terminal_buffer(subtab_name, command_factory, session) abort
     \  '++noclose'
     \  a:command_factory(a:session)
     call s:setup_subtab_buffer(bufnr(), a:session, a:subtab_name)
-    return bufnr()
+    return {'number': bufnr()}
 endfunction
 
 let s:subtabs = {
@@ -71,12 +71,12 @@ function! s:on_breakpoints_updated(session, event_payload) abort
 endfunction
 
 function! s:update_breakpoints_buffer(session) abort
-    let l:breakpoints_buffer = a:session.buffers.breakpoints
+    let l:breakpoints_buffer = a:session.buffers.breakpoints.number
     call deletebufline(l:breakpoints_buffer, 1, '$') " Delete everything
     for l:breakpoint in a:session.breakpoints
         call appendbufline(l:breakpoints_buffer, 0, json_encode(l:breakpoint))
     endfor
-    call deletebufline(l:breakpoints_buffer, '$') " Delete last line
+    call deletebufline(l:breakpoints_buffer, '$') " Delete the last line
 endfunction
 
 let s:event_handlers = {
@@ -95,7 +95,7 @@ let s:seed = srand()
 function! s:format_subtabs_for_status_line(window_id) abort
     let l:formatted_subtab_names = []
     for l:subtab_name in s:subtab_names
-        let l:subtab_bufnr = b:dlvim.session.buffers[l:subtab_name]
+        let l:subtab_bufnr = b:dlvim.session.buffers[l:subtab_name].number
         if winbufnr(a:window_id) ==# l:subtab_bufnr
             let l:formatted_subtab_name = '%#ModeMsg#' .. l:subtab_name .. '%#StatusLine#'
         else
@@ -127,7 +127,7 @@ endfunction
 function! s:rotate_subtab(direction) abort
     let l:current_subtab_name = b:dlvim.subtab_name
     let l:next_subtab_name = s:get_next_subtab_name(l:current_subtab_name, a:direction)
-    let l:next_bufnr = b:dlvim.session.buffers[l:next_subtab_name]
+    let l:next_bufnr = b:dlvim.session.buffers[l:next_subtab_name].number
 
 
     let l:old_eventignore=&eventignore
@@ -138,7 +138,8 @@ endfunction
 
 function! s:collect_garbage(bufnr_being_left) abort
     let l:session = getbufvar(a:bufnr_being_left, 'dlvim').session
-    for l:bufnr in values(l:session.buffers)
+    for l:buffer in values(l:session.buffers)
+        let l:bufnr = l:buffer.number
         if l:bufnr == a:bufnr_being_left
             continue
         endif
@@ -159,7 +160,8 @@ function! s:collect_garbage(bufnr_being_left) abort
     endif
 
     let l:values = values(l:session.buffers)
-    for l:bufnr in l:values
+    for l:buffer in l:values
+        let l:bufnr = l:buffer.number
         if l:bufnr == a:bufnr_being_left
             continue
         endif
@@ -279,7 +281,7 @@ function! s:setup_dlvim_window(window_id, session) abort
 
     let l:old_eventignore=&eventignore
     set eventignore=BufWinLeave
-    call win_execute(a:window_id, printf('buffer %d', a:session.buffers[s:subtab_names[0]]))
+    call win_execute(a:window_id, printf('buffer %d', a:session.buffers[s:subtab_names[0]].number))
     let &eventignore = l:old_eventignore
 endfunction
 
