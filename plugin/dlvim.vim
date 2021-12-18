@@ -10,7 +10,7 @@ sign define DlvimBreakpoint text=●
 function! s:create_buffer(subtab_name, session) abort
     let l:buffer_name = s:uniqualize_name(a:session.id, a:subtab_name)
     execute 'badd' l:buffer_name
-    let l:buffer = {'number': bufnr(l:buffer_name), 'windows': {}}
+    let l:buffer = {'number': bufnr(l:buffer_name)}
     call s:setup_subtab_buffer(l:buffer, a:session, a:subtab_name)
     return l:buffer
 endfunction
@@ -21,7 +21,7 @@ function! s:create_terminal_buffer(subtab_name, command_factory, session) abort
     \  '++kill=TERM'
     \  '++noclose'
     \  a:command_factory(a:session)
-    let l:buffer = {'number': bufnr(), 'windows': {}}
+    let l:buffer = {'number': bufnr()}
     call s:setup_subtab_buffer(l:buffer, a:session, a:subtab_name)
     return l:buffer
 endfunction
