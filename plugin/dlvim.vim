@@ -228,6 +228,8 @@ function! s:collect_garbage(bufnr_being_left) abort
     endfor
     echo 'Dlvim exited'
 
+    call s:clear_breakpoint_signs(l:session)
+
     call remove(g:dlvim.sessions, l:session.id)
     let g:dlvim.current_session = v:null
     for l:remaining_session in values(g:dlvim.sessions)
