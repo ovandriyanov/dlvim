@@ -102,8 +102,9 @@ function! s:update_breakpoints(session) abort
     if has_key(l:response, 'Error')
         throw printf('cannot list breakpoints: %s', l:response.Error)
     endif
-    let a:session['breakpoints'] = l:response.Breakpoints
+    let a:session.breakpoints = l:response.Breakpoints
 
+    call s:update_breakpoint_signs(a:session)
     call s:update_breakpoints_buffer(a:session)
 endfunction
 
@@ -322,10 +323,13 @@ function! s:create_session(dlv_argv) abort
     \   'proxy_log_file':             l:proxy_log_file,
     \   'buffers':                    v:null,
     \   'code_window_id':             win_getid(),
+    \   'breakpoints':                [],
+    \   'breakpoint_sign_group':      '',
     \ }
 
     let [l:proxy_job, l:proxy_listen_address] = s:create_proxy_job(l:session, a:dlv_argv, l:proxy_log_file)
 
+    let l:session.breakpoint_sign_group = 'Dlvim' .. l:session.id
     let l:session.proxy_job = l:proxy_job
     let l:session.proxy_listen_address = l:proxy_listen_address
     let l:session.buffers = s:create_buffers(l:session)
@@ -349,6 +353,20 @@ function! s:setup_dlvim_window(window_id, session) abort
     set eventignore=BufWinLeave
     call win_execute(a:window_id, printf('buffer %d', a:session.buffers[s:subtab_names[0]].number))
     let &eventignore = l:old_eventignore
+endfunction
+
+function! s:update_breakpoint_signs(session) abort
+    call s:clear_breakpoint_signs(a:session)
+    for l:breakpoint in a:session.breakpoints
+        let l:place_result = sign_place(l:breakpoint.id, a:session.breakpoint_sign_group, 'DlvimBreakpoint', l:breakpoint.file, {'lnum': l:breakpoint.line})
+        if l:place_result == -1
+            call s:print_error('cannot set breakpoint sign for breakpoint ' .. l:breakpoint.id)
+        endif
+    endfor
+endfunction
+
+function! s:clear_breakpoint_signs(session) abort
+    call sign_unplace(a:session.breakpoint_sign_group)
 endfunction
 
 function! s:start_session(dlv_argv) abort
@@ -422,10 +440,6 @@ endfunction
 
 function! s:BreakpointName(breakpoint_id, dlv_bufnr) abort
     return 'Dlv' . a:dlv_bufnr . 'Breakpoint' . a:breakpoint_id
-endfunction
-
-function! s:ClearBreakpoints() abort
-    sign unplace * group=DlvimBreakpoints
 endfunction
 
 function! OnBreakpointsUpdated(sessionID) abort
@@ -547,7 +561,7 @@ function! DlvimPrint(object, sessionID = -1) abort
     echo l:response[0]
 endfunction
 
-nnoremap <C-^>ac<C-^>b :call DlvimToggleBreakpointUnderCursor()<Cr>
+nnoremap <C-b> :DlvBreak<Cr>
 nnoremap <C-^>ac<C-^>n :call DlvimNext()<Cr>
 nnoremap <C-^>ac<C-^>c :call DlvimContinue()<Cr>
 nnoremap <C-^>ac<C-^>s :call DlvimStep()<Cr>
