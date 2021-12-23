@@ -1,4 +1,5 @@
 command! -nargs=+ Dlv call s:start_session([<f-args>])
+command! DlvBreak call s:set_breakpoint_on_the_current_line()
 
 let s:repository_root = fnamemodify(expand('<sfile>'), ':h:h')
 let s:proxy_path = s:repository_root .. '/go_proxy/go_proxy'
@@ -51,6 +52,37 @@ let s:subtabs = {
 \     },
 \ }
 
+if !has_key(g:, 'dlvim')
+    let g:dlvim = {
+    \   'sessions': {},
+    \   'current_session': v:null,
+    \ }
+endif
+
+function! s:set_breakpoint_on_the_current_line() abort
+    let l:session = g:dlvim.current_session
+    if type(l:session) == type(v:null)
+        echoerr 'No debugging session is currently in progress'
+        return
+    endif
+
+    let l:response = ch_evalexpr(l:session.proxy_job, ['SetBreakpoint', {
+        \ 'file': expand('%:p'),
+        \ 'line': line('.'),
+    \ }])
+    if has_key(l:response, 'Error')
+        call s:print_error(l:response.Error)
+        return
+    endif
+    call s:update_breakpoints(l:session)
+endfunction
+
+function! s:print_error(message) abort
+    echohl ErrorMsg
+    echomsg a:message
+    echohl None
+endfunction
+
 " function! s:go_to_code_window(session) abort
 "     let [l:tabnr, l:winnr] = win_id2tabwin(a:session.code_window_id)
 "     if [l:tabnr, l:winnr] == [0, 0]
@@ -62,6 +94,10 @@ let s:subtabs = {
 " endfunction
 
 function! s:on_breakpoints_updated(session, event_payload) abort
+    call s:update_breakpoints(a:session)
+endfunction
+
+function! s:update_breakpoints(session) abort
     let l:response = ch_evalexpr(a:session.proxy_job, ['ListBreakpoints', {}])
     if has_key(l:response, 'Error')
         throw printf('cannot list breakpoints: %s', l:response.Error)
@@ -190,6 +226,13 @@ function! s:collect_garbage(bufnr_being_left) abort
         execute l:bufnr . 'bwipeout!'
     endfor
     echo 'Dlvim exited'
+
+    call remove(g:dlvim.sessions, l:session.id)
+    let g:dlvim.current_session = v:null
+    for l:remaining_session in values(g:dlvim.sessions)
+        let g:dlvim.current_session = l:remaining_session
+        break
+    endfor
 endfunction
 
 function! s:setup_subtab_buffer(buffer, session, subtab_name) abort
@@ -273,7 +316,7 @@ endfunction
 function! s:create_session(dlv_argv) abort
     let l:proxy_log_file = tempname()
     let l:session = {
-    \   'id':                         rand(s:seed),
+    \   'id':                         string(rand(s:seed)),
     \   'proxy_job':                  v:null,
     \   'proxy_listen_address':       v:null,
     \   'proxy_log_file':             l:proxy_log_file,
@@ -317,6 +360,9 @@ function! s:start_session(dlv_argv) abort
     endtry
     let l:window_id = s:allocate_dlvim_window()
     call s:setup_dlvim_window(l:window_id, l:session)
+
+    let g:dlvim.sessions[l:session.id] = l:session
+    let g:dlvim.current_session = l:session
 
     " let l:log_bufname = 'dlvim' . l:sessionID . '_log'
     " execute 'edit ' . l:log_bufname
