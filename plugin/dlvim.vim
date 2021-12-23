@@ -1,5 +1,5 @@
 command! -nargs=+ Dlv call s:start_session([<f-args>])
-command! DlvBreak call s:set_breakpoint_on_the_current_line()
+command! DlvBreak call s:create_or_delete_breakpoint_on_the_current_line()
 
 let s:repository_root = fnamemodify(expand('<sfile>'), ':h:h')
 let s:proxy_path = s:repository_root .. '/go_proxy/go_proxy'
@@ -59,14 +59,14 @@ if !has_key(g:, 'dlvim')
     \ }
 endif
 
-function! s:set_breakpoint_on_the_current_line() abort
+function! s:create_or_delete_breakpoint_on_the_current_line() abort
     let l:session = g:dlvim.current_session
     if type(l:session) == type(v:null)
         echoerr 'No debugging session is currently in progress'
         return
     endif
 
-    let l:response = ch_evalexpr(l:session.proxy_job, ['SetBreakpoint', {
+    let l:response = ch_evalexpr(l:session.proxy_job, ['CreateOrDeleteBreakpoint', {
         \ 'file': expand('%:p'),
         \ 'line': line('.'),
     \ }])

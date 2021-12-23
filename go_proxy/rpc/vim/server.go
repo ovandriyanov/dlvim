@@ -29,6 +29,13 @@ func (s *Server) Stop() {
 	s.inventory.Stop()
 }
 
+func (s *Server) UpstreamClient() *rpc.Client {
+	if s.inventory == nil {
+		return nil
+	}
+	return s.inventory.upstreamClient
+}
+
 func (s *Server) HandleClient(ctx context.Context, clientConn io.ReadWriteCloser) {
 	defer clientConn.Close()
 

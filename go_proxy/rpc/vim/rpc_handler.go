@@ -2,10 +2,13 @@ package vim
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"reflect"
 
+	dlvapi "github.com/go-delve/delve/service/api"
+	dlvrpc "github.com/go-delve/delve/service/rpc2"
 	"github.com/ovandriyanov/dlvim/go_proxy/rpc/dlv"
 	"github.com/ovandriyanov/dlvim/go_proxy/upstream"
 	_ "github.com/ovandriyanov/dlvim/go_proxy/upstream/command"
@@ -142,6 +145,70 @@ func (h *RPCHandler) GetNextEvent(req map[string]interface{}, resp *map[string]i
 
 	(*resp)["kind"] = event.Kind()
 	(*resp)["payload"] = event
+	return nil
+}
+
+type CreateOrDeleteBreakpointIn struct {
+	File string `json:"file"`
+	Line int    `json:"line"`
+}
+
+type CreateOrDeleteBreakpointOut struct{}
+
+func jsonDump(anything interface{}) string {
+	marshaledData, _ := json.MarshalIndent(anything, "", "    ")
+	return string(marshaledData)
+}
+
+func (h *RPCHandler) CreateOrDeleteBreakpoint(req *CreateOrDeleteBreakpointIn, resp *CreateOrDeleteBreakpointOut) error {
+	upstreamClient := h.server.UpstreamClient()
+	if upstreamClient == nil {
+		return xerrors.New("not initialized")
+	}
+
+	findLocationRequest := dlvrpc.FindLocationIn{
+		Scope: dlvapi.EvalScope{GoroutineID: -1},
+		Loc:   fmt.Sprintf("%s:%d", req.File, req.Line),
+	}
+	var findLocationResponse dlvrpc.FindLocationOut
+	if err := upstreamClient.Call(dlv.FQMN("FindLocation"), &findLocationRequest, &findLocationResponse); err != nil {
+		return xerrors.Errorf("cannot find location: %w", err)
+	}
+	if len(findLocationResponse.Locations) == 0 {
+		return xerrors.New("no locations found")
+	}
+	foundLocation := findLocationResponse.Locations[0]
+
+	listBreakpointsRequest := dlvrpc.ListBreakpointsIn{All: false}
+	var listBreakpointsResponse dlvrpc.ListBreakpointsOut
+	if err := upstreamClient.Call(dlv.FQMN("ListBreakpoints"), &listBreakpointsRequest, &listBreakpointsResponse); err != nil {
+		return xerrors.Errorf("cannot list breakpoints: %w", err)
+	}
+	for _, breakpoint := range listBreakpointsResponse.Breakpoints {
+		for _, addr := range breakpoint.Addrs {
+			if addr == foundLocation.PC {
+				clearBreakpointRequest := dlvrpc.ClearBreakpointIn{Id: breakpoint.ID}
+				var clearBreakpointResponse dlvrpc.ClearBreakpointOut
+				if err := upstreamClient.Call(dlv.FQMN("ClearBreakpoint"), &clearBreakpointRequest, &clearBreakpointResponse); err != nil {
+					return xerrors.Errorf("cannot clear breakpoint %d: %w", breakpoint.ID, err)
+				}
+				log.Printf("ClearBreakpoint response: %v\n", jsonDump(clearBreakpointResponse))
+				return nil
+			}
+		}
+	}
+
+	createBreakpointRequest := dlvrpc.CreateBreakpointIn{
+		Breakpoint: dlvapi.Breakpoint{
+			Addrs: []uint64{foundLocation.PC},
+		},
+	}
+	var createBreakpointResponse dlvrpc.CreateBreakpointOut
+	if err := upstreamClient.Call(dlv.FQMN("CreateBreakpoint"), &createBreakpointRequest, &createBreakpointResponse); err != nil {
+		return xerrors.Errorf("cannot create breakpoint: %w", err)
+	}
+
+	log.Printf("CreateBreakpoint response: %v\n", jsonDump(createBreakpointResponse))
 	return nil
 }
 

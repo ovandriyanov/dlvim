@@ -37,7 +37,7 @@ type RPCHandler struct {
 func (h *RPCHandler) defaultHandler(method string, req map[string]interface{}, resp *map[string]interface{}) error {
 	if *debugRPC {
 		jsonReq, _ := json.MarshalIndent(req, "", "    ")
-		log.Printf("Request: %s\n", jsonReq)
+		log.Printf("Call %s, request: %s\n", method, jsonReq)
 	}
 	err := h.dlvClient.Call(method, req, resp)
 	if err != nil {
@@ -45,7 +45,7 @@ func (h *RPCHandler) defaultHandler(method string, req map[string]interface{}, r
 	}
 	if *debugRPC {
 		jsonResp, _ := json.MarshalIndent(resp, "", "    ")
-		log.Printf("Response: %s\n", jsonResp)
+		log.Printf("Call %s, response: %s\n", method, jsonResp)
 	}
 	return err
 }
