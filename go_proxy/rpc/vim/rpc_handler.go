@@ -275,7 +275,7 @@ func (h *RPCHandler) Next(req *NextIn, resp *NextOut) error {
 
 	commandRequest := dlvapi.DebuggerCommand{Name: dlvapi.Next}
 	var commandResponse dlvrpc.CommandOut
-	return upstreamClient.Call(dlv.FQMN("Next"), &commandRequest, &commandResponse)
+	return upstreamClient.Call(dlv.FQMN("Command"), &commandRequest, &commandResponse)
 }
 
 type StepIn struct{}
@@ -289,7 +289,7 @@ func (h *RPCHandler) Step(req *StepIn, resp *StepOut) error {
 
 	commandRequest := dlvapi.DebuggerCommand{Name: dlvapi.Step}
 	var commandResponse dlvrpc.CommandOut
-	return upstreamClient.Call(dlv.FQMN("Step"), &commandRequest, &commandResponse)
+	return upstreamClient.Call(dlv.FQMN("Command"), &commandRequest, &commandResponse)
 }
 
 type StepoutIn struct{}
@@ -303,7 +303,7 @@ func (h *RPCHandler) Stepout(req *StepoutIn, resp *StepoutOut) error {
 
 	commandRequest := dlvapi.DebuggerCommand{Name: dlvapi.StepOut}
 	var commandResponse dlvrpc.CommandOut
-	return upstreamClient.Call(dlv.FQMN("Stepout"), &commandRequest, &commandResponse)
+	return upstreamClient.Call(dlv.FQMN("Command"), &commandRequest, &commandResponse)
 }
 
 func NewRPCHandler(server *Server, ctx context.Context) *RPCHandler {

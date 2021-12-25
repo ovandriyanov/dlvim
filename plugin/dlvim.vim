@@ -1,5 +1,9 @@
 command! -nargs=+ Dlv call s:start_session([<f-args>])
-command! DlvBreak call s:create_or_delete_breakpoint_on_the_current_line()
+command! DlvBreak     call s:create_or_delete_breakpoint_on_the_current_line()
+command! DlvContinue  call s:continue_execution()
+command! DlvNext      call s:next_instruction()
+command! DlvStep      call s:step_one_instruction()
+command! DlvStepout   call s:step_out()
 
 let s:repository_root = fnamemodify(expand('<sfile>'), ':h:h')
 let s:proxy_path = s:repository_root .. '/go_proxy/go_proxy'
@@ -62,7 +66,7 @@ endif
 function! s:create_or_delete_breakpoint_on_the_current_line() abort
     let l:session = g:dlvim.current_session
     if type(l:session) == type(v:null)
-        echoerr 'No debugging session is currently in progress'
+        call s:print_error( 'No debugging session is currently in progress')
         return
     endif
 
@@ -75,6 +79,82 @@ function! s:create_or_delete_breakpoint_on_the_current_line() abort
         return
     endif
     call s:update_breakpoints(l:session)
+endfunction
+
+function! s:continue_execution() abort
+    let l:session = g:dlvim.current_session
+    if type(l:session) == type(v:null)
+        call s:print_error( 'No debugging session is currently in progress')
+        return
+    endif
+
+    call s:clear_current_instruction_sign(l:session)
+    let l:options = {'callback': function(funcref(expand('<SID>') .. 'on_continue_execution_response'), [l:session])}
+    call ch_sendexpr(l:session.proxy_job, ['Continue', {}], l:options)
+endfunction
+
+function! s:on_continue_execution_response(session, channel, response) abort
+    if has_key(a:response, 'Error')
+        call s:print_error('cannot continue execution: ' .. a:response.Error)
+    endif
+    call s:update_state(a:session)
+endfunction
+
+function! s:next_instruction() abort
+    let l:session = g:dlvim.current_session
+    if type(l:session) == type(v:null)
+        call s:print_error( 'No debugging session is currently in progress')
+        return
+    endif
+
+    call s:clear_current_instruction_sign(l:session)
+    let l:options = {'callback': function(funcref(expand('<SID>') .. 'on_next_instruction_response'), [l:session])}
+    call ch_sendexpr(l:session.proxy_job, ['Next', {}], l:options)
+endfunction
+
+function! s:on_next_instruction_response(session, channel, response) abort
+    if has_key(a:response, 'Error')
+        call s:print_error('cannot go to the next instruction: ' .. a:response.Error)
+    endif
+    call s:update_state(a:session)
+endfunction
+
+function! s:step_one_instruction() abort
+    let l:session = g:dlvim.current_session
+    if type(l:session) == type(v:null)
+        call s:print_error( 'No debugging session is currently in progress')
+        return
+    endif
+
+    call s:clear_current_instruction_sign(l:session)
+    let l:options = {'callback': function(funcref(expand('<SID>') .. 'on_step_one_instruction_response'), [l:session])}
+    call ch_sendexpr(l:session.proxy_job, ['Step', {}], l:options)
+endfunction
+
+function! s:on_step_one_instruction_response(session, channel, response) abort
+    if has_key(a:response, 'Error')
+        call s:print_error('cannot step one instruction: ' .. a:response.Error)
+    endif
+    call s:update_state(a:session)
+endfunction
+
+function! s:step_out() abort
+    let l:session = g:dlvim.current_session
+    if type(l:session) == type(v:null)
+        call s:print_error( 'No debugging session is currently in progress')
+        return
+    endif
+
+    call s:clear_current_instruction_sign(l:session)
+    let l:options = {'callback': function(funcref(expand('<SID>') .. 'on_step_out_response'), [l:session])}
+    call ch_sendexpr(l:session.proxy_job, ['Step', {}], l:options)
+endfunction
+
+function! s:on_step_out_response(session, channel, response) abort
+    if has_key(a:response, 'Error')
+        call s:print_error('cannot step out: ' .. a:response.Error)
+    endif
+    call s:update_state(a:session)
 endfunction
 
 function! s:print_error(message) abort
@@ -123,7 +203,6 @@ function! s:update_state(session) abort
     if has_key(l:response, 'Error')
         throw printf('cannot get state: %s', l:response.Error)
     endif
-    echom 'KEK: ' .. json_encode(l:response)
     if type(get(l:response, 'state', v:null)) == type(v:null)
         return
     endif
@@ -340,14 +419,19 @@ function! s:create_proxy_job(session, dlv_argv, proxy_log_file) abort
     return [l:job, l:proxy_listen_address]
 endfunction
 
-function! s:on_next_event(session, channel, event) abort
-    if !has_key(s:event_handlers, a:event.kind)
-        echom 'Unhandled event: ' .. a:event.kind
+function! s:on_next_event(session, channel, response) abort
+    if has_key(a:response, 'Error')
+        call s:print_error('cannot get next event: ' .. a:response.Error)
         return
     endif
 
+    let l:event = a:response
+    if !has_key(s:event_handlers, l:event.kind)
+        echom 'Unhandled event: ' .. l:event.kind
+    endif
+
     try
-        call s:event_handlers[a:event.kind](a:session, a:event.payload)
+        call s:event_handlers[l:event.kind](a:session, l:event.payload)
     finally
         call ch_sendexpr(a:channel, ['GetNextEvent', {}], {'callback': function(funcref(expand('<SID>') .. 'on_next_event'), [a:session])})
     endtry
@@ -602,18 +686,8 @@ function! DlvimPrint(object, sessionID = -1) abort
     echo l:response[0]
 endfunction
 
-nnoremap <C-b> :DlvBreak<Cr>
-nnoremap <C-^>ac<C-^>n :call DlvimNext()<Cr>
-nnoremap <C-^>ac<C-^>c :call DlvimContinue()<Cr>
-nnoremap <C-^>ac<C-^>s :call DlvimStep()<Cr>
-nnoremap <C-^>ac<C-^>o :call DlvimStepOut()<Cr>
-nnoremap <C-^>ac<C-^>k :call DlvimUp()<Cr>
-nnoremap <C-^>ac<C-^>j :call DlvimDown()<Cr>
-nnoremap <C-^>ac<C-^>i :call DlvimInterrupt()<Cr>
-nnoremap <C-^>ac<C-^>p :call DlvimPrint(GetCurrentWord())<Cr>
-vnoremap <C-^>ac<C-^>p :<C-U>call DlvimPrint(GetLastSelection())<Cr>
-
-"augroup dlvim
-"    autocmd!
-"    autocmd BufWinLeave * call s:cleanup(win_getid())
-"augroup END
+nnoremap <C-^>ac<C-^>b :DlvBreak<Cr>
+nnoremap <C-^>ac<C-^>c :DlvContinue<Cr>
+nnoremap <C-^>ac<C-^>n :DlvNext<Cr>
+nnoremap <C-^>ac<C-^>s :DlvStep<Cr>
+nnoremap <C-^>ac<C-^>o :DlvStepout<Cr>
