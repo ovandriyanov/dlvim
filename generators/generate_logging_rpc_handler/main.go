@@ -32,6 +32,8 @@ func main() {
 }
 
 func writeOutput(packageName string, rpcHandlerTypeName string, rpcMethods []rpcMethod, writer io.Writer) {
+	fmt.Fprintf(writer, "// Generated with generate_logging_rpc_handler. Do not edit!\n")
+	fmt.Fprintf(writer, "\n")
 	fmt.Fprintf(writer, "package %s\n", packageName)
 	fmt.Fprintf(writer, "\n")
 	fmt.Fprintf(writer, "import (\n")
