@@ -1,3 +1,4 @@
+//go:generate go run ../../../generators/generate_logging_rpc_handler --input-dir . --rpc-handler-type-name RPCHandler --output-file logging_rpc_handler.go
 package proxy
 
 import (
