@@ -97,6 +97,10 @@ function! s:on_breakpoints_updated(session, event_payload) abort
     call s:update_breakpoints(a:session)
 endfunction
 
+function! s:on_command_issued(session, event_payload) abort
+    call s:clear_current_instruction_sign(a:session)
+endfunction
+
 function! s:on_state_updated(session, event_payload) abort
     call s:update_state(a:session)
 endfunction
@@ -170,6 +174,7 @@ endfunction
 
 let s:event_handlers = {
 \     'BREAKPOINTS_UPDATED': funcref(expand('<SID>') .. 'on_breakpoints_updated'),
+\     'COMMAND_ISSUED':      funcref(expand('<SID>') .. 'on_command_issued'),
 \     'STATE_UPDATED':       funcref(expand('<SID>') .. 'on_state_updated'),
 \ }
 
