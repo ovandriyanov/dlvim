@@ -3,9 +3,9 @@ package vim
 import (
 	"context"
 	"net"
-	"net/rpc"
 	"net/rpc/jsonrpc"
 
+	commonrpc "github.com/ovandriyanov/dlvim/proxy/rpc"
 	"github.com/ovandriyanov/dlvim/proxy/rpc/proxy"
 	"github.com/ovandriyanov/dlvim/proxy/upstream"
 	"github.com/ovandriyanov/dlvim/proxy/vimevent"
@@ -14,7 +14,7 @@ import (
 
 type inventory struct {
 	upstreamProcess *upstream.Upstream
-	upstreamClient  *rpc.Client
+	upstreamClient  commonrpc.Client
 	proxyServer     *proxy.Server
 }
 
@@ -28,7 +28,7 @@ func (i *inventory) ProxyListenAddress() net.Addr {
 	return i.proxyServer.ListenAddress()
 }
 
-func NewInventory(ctx context.Context, upstreamCommand upstream.Command, events chan<- vimevent.Event) (*inventory, error) {
+func NewInventory(ctx context.Context, upstreamCommand upstream.Command, events chan<- vimevent.Event, debugRPC bool) (*inventory, error) {
 	upstreamProcess, err := upstream.New(ctx, upstreamCommand)
 	if err != nil {
 		return nil, xerrors.Errorf("cannot create upstream: %w", err)
@@ -40,16 +40,21 @@ func NewInventory(ctx context.Context, upstreamCommand upstream.Command, events 
 		return nil, xerrors.Errorf("cannot dial upstream at %s: %w", upstream.ListenAddress, err)
 	}
 
-	proxyServer, err := proxy.NewServer(upstream.ListenAddress, events)
+	proxyServer, err := proxy.NewServer(upstream.ListenAddress, events, debugRPC)
 	if err != nil {
 		_ = upstreamConnection.Close()
 		upstreamProcess.Stop()
 		return nil, xerrors.Errorf("cannot create proxy server: %w", err)
 	}
 
+	var upstreamClient commonrpc.Client = jsonrpc.NewClient(upstreamConnection)
+	if debugRPC {
+		upstreamClient = commonrpc.NewLoggingClient("dlv", upstreamClient)
+	}
+
 	return &inventory{
 		upstreamProcess: upstreamProcess,
-		upstreamClient:  jsonrpc.NewClient(upstreamConnection),
+		upstreamClient:  upstreamClient,
 		proxyServer:     proxyServer,
 	}, nil
 }

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	commonrpc "github.com/ovandriyanov/dlvim/proxy/rpc"
 	"github.com/ovandriyanov/dlvim/proxy/upstream"
 	"github.com/ovandriyanov/dlvim/proxy/vimevent"
 	"golang.org/x/xerrors"
@@ -16,6 +17,7 @@ type Server struct {
 	events    chan vimevent.Event
 	mutex     sync.Mutex
 	inventory *inventory
+	debugRPC  bool
 }
 
 func (s *Server) Stop() {
@@ -29,7 +31,7 @@ func (s *Server) Stop() {
 	s.inventory.Stop()
 }
 
-func (s *Server) UpstreamClient() *rpc.Client {
+func (s *Server) UpstreamClient() commonrpc.Client {
 	if s.inventory == nil {
 		return nil
 	}
@@ -42,7 +44,11 @@ func (s *Server) HandleClient(ctx context.Context, clientConn io.ReadWriteCloser
 	rpcDone := make(chan struct{})
 	srv := rpc.NewServer()
 	rpcHandler := NewRPCHandler(s, ctx)
-	srv.RegisterName(ServiceName, rpcHandler)
+	var receiver interface{} = rpcHandler
+	if s.debugRPC {
+		receiver = NewLoggingRPCHandler(rpcHandler, "vim")
+	}
+	srv.RegisterName(ServiceName, receiver)
 	go func() {
 		srv.ServeCodec(NewRPCCodec(clientConn))
 		rpcDone <- struct{}{}
@@ -68,7 +74,7 @@ func (s *Server) Initialize(command upstream.Command) (inventory *inventory, err
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	s.inventory, err = NewInventory(ctx, command, s.events)
+	s.inventory, err = NewInventory(ctx, command, s.events, s.debugRPC)
 	if err != nil {
 		return nil, err
 	}
@@ -76,10 +82,11 @@ func (s *Server) Initialize(command upstream.Command) (inventory *inventory, err
 	return s.inventory, nil
 }
 
-func NewServer() *Server {
+func NewServer(debugRPC bool) *Server {
 	return &Server{
 		events:    make(chan vimevent.Event),
 		mutex:     sync.Mutex{},
 		inventory: nil,
+		debugRPC:  debugRPC,
 	}
 }

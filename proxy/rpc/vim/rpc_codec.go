@@ -89,7 +89,6 @@ func (v *RPCCodec) ReadRequestBody(body interface{}) (err error) {
 			log.Printf("Cannot read request body for method %s (seq %d): %s\n", v.requestMessage.method, v.requestMessage.seq, err.Error())
 			return
 		}
-		log.Printf("Vim: call %s with argument %v\n", v.requestMessage.method, body)
 	}()
 	if body == nil {
 		return

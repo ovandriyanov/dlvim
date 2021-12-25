@@ -3,8 +3,6 @@ package proxy
 
 import (
 	"context"
-	"encoding/json"
-	"flag"
 	"log"
 	"net/rpc"
 	"reflect"
@@ -14,8 +12,6 @@ import (
 )
 
 var KnownMethods map[string]struct{}
-
-var debugRPC = flag.Bool("debug-rpc", false, "Show full requests and responses sent between dlv and the proxy")
 
 func init() {
 	KnownMethods = make(map[string]struct{})
@@ -36,19 +32,7 @@ type RPCHandler struct {
 }
 
 func (h *RPCHandler) defaultHandler(method string, req map[string]interface{}, resp *map[string]interface{}) error {
-	if *debugRPC {
-		jsonReq, _ := json.MarshalIndent(req, "", "    ")
-		log.Printf("Call %s, request: %s\n", method, jsonReq)
-	}
-	err := h.dlvClient.Call(method, req, resp)
-	if err != nil {
-		log.Printf("Error: %v\n", err)
-	}
-	if *debugRPC {
-		jsonResp, _ := json.MarshalIndent(resp, "", "    ")
-		log.Printf("Call %s, response: %s\n", method, jsonResp)
-	}
-	return err
+	return h.dlvClient.Call(method, req, resp)
 }
 
 func (h *RPCHandler) CreateBreakpoint(req map[string]interface{}, resp *map[string]interface{}) error {

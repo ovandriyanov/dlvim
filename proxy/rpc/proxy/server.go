@@ -23,6 +23,7 @@ type Server struct {
 	cancelCtx   func()
 	clientsWg   sync.WaitGroup
 	events      chan<- vimevent.Event
+	debugRPC    bool
 }
 
 func (s *Server) Stop() {
@@ -75,7 +76,12 @@ func (s *Server) handleClient(ctx context.Context, clientConn io.ReadWriteCloser
 
 	dlvClient := jsonrpc.NewClient(dlvConn)
 	srv := rpc.NewServer()
-	srv.RegisterName(dlv.ServiceName, NewRPCHandler(dlvClient, s.events, ctx))
+	handler := NewRPCHandler(dlvClient, s.events, ctx)
+	var receiver interface{} = handler
+	if s.debugRPC {
+		receiver = NewLoggingRPCHandler(handler, "proxy")
+	}
+	srv.RegisterName(dlv.ServiceName, receiver)
 	rpcDone := make(chan struct{})
 	go func() {
 		srv.ServeCodec(NewRPCCodec(clientConn, dlvClient))
@@ -91,7 +97,7 @@ func (s *Server) handleClient(ctx context.Context, clientConn io.ReadWriteCloser
 	}
 }
 
-func NewServer(dlvAddress string, events chan<- vimevent.Event) (*Server, error) {
+func NewServer(dlvAddress string, events chan<- vimevent.Event, debugRPC bool) (*Server, error) {
 	listener, err := net.Listen("tcp", "localhost:")
 	if err != nil {
 		return nil, xerrors.Errorf("listen: %w", err)
@@ -107,6 +113,7 @@ func NewServer(dlvAddress string, events chan<- vimevent.Event) (*Server, error)
 		cancelCtx:   cancel,
 		clientsWg:   sync.WaitGroup{},
 		events:      events,
+		debugRPC:    debugRPC,
 	}
 	go server.acceptClients()
 

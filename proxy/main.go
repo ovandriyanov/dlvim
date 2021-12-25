@@ -10,6 +10,10 @@ import (
 	"github.com/ovandriyanov/dlvim/proxy/rpc/vim"
 )
 
+var (
+	debugRPC = flag.Bool("debug-rpc", false, "Show full requests and responses sent between dlv and the proxy")
+)
+
 const (
 	proxyListenAddress = "localhost:8080"
 )
@@ -28,7 +32,7 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		vimServer := vim.NewServer()
+		vimServer := vim.NewServer(*debugRPC)
 		defer vimServer.Stop()
 
 		vimServer.HandleClient(ctx, common.NewStdioConn())
