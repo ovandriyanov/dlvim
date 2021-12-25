@@ -6,7 +6,7 @@ command! DlvStep      call s:step_one_instruction()
 command! DlvStepout   call s:step_out()
 
 let s:repository_root = fnamemodify(expand('<sfile>'), ':h:h')
-let s:proxy_path = s:repository_root .. '/go_proxy/go_proxy'
+let s:proxy_path = s:repository_root .. '/proxy/proxy'
 
 highlight CurrentInstruction ctermbg=lightblue
 sign define DlvimCurrentInstruction linehl=CurrentInstruction

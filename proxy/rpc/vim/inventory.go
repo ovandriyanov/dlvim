@@ -6,9 +6,9 @@ import (
 	"net/rpc"
 	"net/rpc/jsonrpc"
 
-	"github.com/ovandriyanov/dlvim/go_proxy/rpc/proxy"
-	"github.com/ovandriyanov/dlvim/go_proxy/upstream"
-	"github.com/ovandriyanov/dlvim/go_proxy/vimevent"
+	"github.com/ovandriyanov/dlvim/proxy/rpc/proxy"
+	"github.com/ovandriyanov/dlvim/proxy/upstream"
+	"github.com/ovandriyanov/dlvim/proxy/vimevent"
 	"golang.org/x/xerrors"
 )
 

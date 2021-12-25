@@ -1,7 +1,7 @@
 package proxy
 
 import (
-	"github.com/ovandriyanov/dlvim/go_proxy/rpc/dlv"
+	"github.com/ovandriyanov/dlvim/proxy/rpc/dlv"
 )
 
 func (h *RPCHandler) SetApiVersion(req map[string]interface{}, resp *map[string]interface{}) error {

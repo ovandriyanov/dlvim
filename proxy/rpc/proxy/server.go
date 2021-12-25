@@ -9,9 +9,9 @@ import (
 	"net/rpc/jsonrpc"
 	"sync"
 
-	"github.com/ovandriyanov/dlvim/go_proxy/common"
-	"github.com/ovandriyanov/dlvim/go_proxy/rpc/dlv"
-	"github.com/ovandriyanov/dlvim/go_proxy/vimevent"
+	"github.com/ovandriyanov/dlvim/proxy/common"
+	"github.com/ovandriyanov/dlvim/proxy/rpc/dlv"
+	"github.com/ovandriyanov/dlvim/proxy/vimevent"
 	"golang.org/x/xerrors"
 )
 

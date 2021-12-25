@@ -6,8 +6,8 @@ import (
 	"log"
 	"sync"
 
-	"github.com/ovandriyanov/dlvim/go_proxy/common"
-	"github.com/ovandriyanov/dlvim/go_proxy/rpc/vim"
+	"github.com/ovandriyanov/dlvim/proxy/common"
+	"github.com/ovandriyanov/dlvim/proxy/rpc/vim"
 )
 
 const (

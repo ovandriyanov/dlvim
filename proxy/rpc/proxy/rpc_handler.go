@@ -8,8 +8,8 @@ import (
 	"net/rpc"
 	"reflect"
 
-	"github.com/ovandriyanov/dlvim/go_proxy/rpc/dlv"
-	"github.com/ovandriyanov/dlvim/go_proxy/vimevent"
+	"github.com/ovandriyanov/dlvim/proxy/rpc/dlv"
+	"github.com/ovandriyanov/dlvim/proxy/vimevent"
 )
 
 var KnownMethods map[string]struct{}

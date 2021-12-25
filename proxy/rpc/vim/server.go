@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ovandriyanov/dlvim/go_proxy/upstream"
-	"github.com/ovandriyanov/dlvim/go_proxy/vimevent"
+	"github.com/ovandriyanov/dlvim/proxy/upstream"
+	"github.com/ovandriyanov/dlvim/proxy/vimevent"
 	"golang.org/x/xerrors"
 )
 

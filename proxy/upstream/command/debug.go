@@ -1,7 +1,7 @@
 package command
 
 import (
-	"github.com/ovandriyanov/dlvim/go_proxy/upstream"
+	"github.com/ovandriyanov/dlvim/proxy/upstream"
 	"golang.org/x/xerrors"
 )
 

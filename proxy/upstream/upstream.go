@@ -10,7 +10,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/ovandriyanov/dlvim/go_proxy/common"
+	"github.com/ovandriyanov/dlvim/proxy/common"
 	"golang.org/x/xerrors"
 )
 

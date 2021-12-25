@@ -9,10 +9,10 @@ import (
 
 	dlvapi "github.com/go-delve/delve/service/api"
 	dlvrpc "github.com/go-delve/delve/service/rpc2"
-	"github.com/ovandriyanov/dlvim/go_proxy/rpc/dlv"
-	"github.com/ovandriyanov/dlvim/go_proxy/upstream"
-	_ "github.com/ovandriyanov/dlvim/go_proxy/upstream/command"
-	"github.com/ovandriyanov/dlvim/go_proxy/vimevent"
+	"github.com/ovandriyanov/dlvim/proxy/rpc/dlv"
+	"github.com/ovandriyanov/dlvim/proxy/upstream"
+	_ "github.com/ovandriyanov/dlvim/proxy/upstream/command"
+	"github.com/ovandriyanov/dlvim/proxy/vimevent"
 	"golang.org/x/xerrors"
 )
 
