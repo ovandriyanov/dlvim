@@ -97,6 +97,10 @@ function! s:on_breakpoints_updated(session, event_payload) abort
     call s:update_breakpoints(a:session)
 endfunction
 
+function! s:on_state_updated(session, event_payload) abort
+    call s:update_state(a:session)
+endfunction
+
 function! s:update_breakpoints(session) abort
     let l:response = ch_evalexpr(a:session.proxy_job, ['ListBreakpoints', {}])
     if has_key(l:response, 'Error')
@@ -106,6 +110,32 @@ function! s:update_breakpoints(session) abort
 
     call s:update_breakpoint_signs(a:session)
     call s:update_breakpoints_buffer(a:session)
+endfunction
+
+function! s:update_state(session) abort
+    call s:clear_current_instruction_sign(a:session)
+
+    let l:response = ch_evalexpr(a:session.proxy_job, ['GetState', {}])
+    if has_key(l:response, 'Error')
+        throw printf('cannot get state: %s', l:response.Error)
+    endif
+    echom 'KEK: ' .. json_encode(l:response)
+    if type(get(l:response, 'state', v:null)) == type(v:null)
+        return
+    endif
+    call s:set_current_instruction_sign(a:session, l:response.state)
+endfunction
+
+function! s:clear_current_instruction_sign(session) abort
+    call sign_unplace(a:session.current_instruction_sign_group)
+endfunction
+
+function! s:set_current_instruction_sign(session, state) abort
+    let l:arbitrary_id = 1 " we only have one current instruction at a time, so we pick an arbitrary id
+    let l:place_result = sign_place(l:arbitrary_id, a:session.current_instruction_sign_group, 'DlvimCurrentInstruction', a:state.file, {'lnum': a:state.line})
+    if l:place_result == -1
+        call s:print_error('cannot set current instruction sign at ' json_encode(a:state))
+    endif
 endfunction
 
 function! s:update_breakpoints_buffer(session) abort
@@ -140,6 +170,7 @@ endfunction
 
 let s:event_handlers = {
 \     'BREAKPOINTS_UPDATED': funcref(expand('<SID>') .. 'on_breakpoints_updated'),
+\     'STATE_UPDATED':       funcref(expand('<SID>') .. 'on_state_updated'),
 \ }
 
 let s:subtab_names = [
@@ -229,6 +260,7 @@ function! s:collect_garbage(bufnr_being_left) abort
     echo 'Dlvim exited'
 
     call s:clear_breakpoint_signs(l:session)
+    call s:clear_current_instruction_sign(l:session)
 
     call remove(g:dlvim.sessions, l:session.id)
     let g:dlvim.current_session = v:null
@@ -319,19 +351,21 @@ endfunction
 function! s:create_session(dlv_argv) abort
     let l:proxy_log_file = tempname()
     let l:session = {
-    \   'id':                         string(rand(s:seed)),
-    \   'proxy_job':                  v:null,
-    \   'proxy_listen_address':       v:null,
-    \   'proxy_log_file':             l:proxy_log_file,
-    \   'buffers':                    v:null,
-    \   'code_window_id':             win_getid(),
-    \   'breakpoints':                [],
-    \   'breakpoint_sign_group':      '',
+    \   'id':                               string(rand(s:seed)),
+    \   'proxy_job':                        v:null,
+    \   'proxy_listen_address':             v:null,
+    \   'proxy_log_file':                   l:proxy_log_file,
+    \   'buffers':                          v:null,
+    \   'code_window_id':                   win_getid(),
+    \   'breakpoints':                      [],
+    \   'breakpoint_sign_group':            '',
+    \   'current_instruction_sign_group':   '',
     \ }
 
     let [l:proxy_job, l:proxy_listen_address] = s:create_proxy_job(l:session, a:dlv_argv, l:proxy_log_file)
 
-    let l:session.breakpoint_sign_group = 'Dlvim' .. l:session.id
+    let l:session.breakpoint_sign_group = 'DlvimBreakpoints' .. l:session.id
+    let l:session.current_instruction_sign_group = 'DlvimCurrentInstruction' .. l:session.id
     let l:session.proxy_job = l:proxy_job
     let l:session.proxy_listen_address = l:proxy_listen_address
     let l:session.buffers = s:create_buffers(l:session)

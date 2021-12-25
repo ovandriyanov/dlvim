@@ -32,10 +32,6 @@ func (h *RPCHandler) Recorded(req map[string]interface{}, resp *map[string]inter
 	return h.defaultHandler(dlv.FQMN("Recorded"), req, resp)
 }
 
-func (h *RPCHandler) Command(req map[string]interface{}, resp *map[string]interface{}) error {
-	return h.defaultHandler(dlv.FQMN("Command"), req, resp)
-}
-
 func (h *RPCHandler) FindLocation(req map[string]interface{}, resp *map[string]interface{}) error {
 	return h.defaultHandler(dlv.FQMN("FindLocation"), req, resp)
 }

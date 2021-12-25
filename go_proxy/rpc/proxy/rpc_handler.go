@@ -94,3 +94,15 @@ func NewRPCHandler(dlvClient *rpc.Client, events chan<- vimevent.Event, ctx cont
 		ctx:       ctx,
 	}
 }
+
+func (h *RPCHandler) Command(req map[string]interface{}, resp *map[string]interface{}) error {
+	err := h.defaultHandler(dlv.FQMN("Command"), req, resp)
+	if err != nil {
+		return err
+	}
+	select {
+	case h.events <- &vimevent.StateUpdated{}:
+	case <-h.ctx.Done():
+	}
+	return nil
+}

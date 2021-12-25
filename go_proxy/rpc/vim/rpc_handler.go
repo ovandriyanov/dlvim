@@ -212,6 +212,100 @@ func (h *RPCHandler) CreateOrDeleteBreakpoint(req *CreateOrDeleteBreakpointIn, r
 	return nil
 }
 
+type GetStateIn struct{}
+type State struct {
+	File string `json:"file"`
+	Line int    `json:"line"`
+}
+type GetStateOut struct {
+	State *State `json:"state"`
+}
+
+func (h *RPCHandler) GetState(req *GetStateIn, resp *GetStateOut) error {
+	upstreamClient := h.server.UpstreamClient()
+	if upstreamClient == nil {
+		return xerrors.New("not initialized")
+	}
+
+	getStateRequest := dlvrpc.StateIn{NonBlocking: false}
+	var getStateResponse dlvrpc.StateOut
+	if err := upstreamClient.Call(dlv.FQMN("State"), &getStateRequest, &getStateResponse); err != nil {
+		return err
+	}
+
+	state := getStateResponse.State
+	if state == nil {
+		return xerrors.New("upstream returned zero state")
+	}
+	selectedGoroutine := state.SelectedGoroutine
+	if selectedGoroutine == nil {
+		// This usually means the program finished it's execution
+		return nil
+	}
+
+	resp.State = &State{
+		File: selectedGoroutine.UserCurrentLoc.File,
+		Line: selectedGoroutine.UserCurrentLoc.Line,
+	}
+	return nil
+}
+
+type ContinueIn struct{}
+type ContinueOut struct{}
+
+func (h *RPCHandler) Continue(req *ContinueIn, resp *ContinueOut) error {
+	upstreamClient := h.server.UpstreamClient()
+	if upstreamClient == nil {
+		return xerrors.New("not initialized")
+	}
+
+	commandRequest := dlvapi.DebuggerCommand{Name: dlvapi.Continue}
+	var commandResponse dlvrpc.CommandOut
+	return upstreamClient.Call(dlv.FQMN("Command"), &commandRequest, &commandResponse)
+}
+
+type NextIn struct{}
+type NextOut struct{}
+
+func (h *RPCHandler) Next(req *NextIn, resp *NextOut) error {
+	upstreamClient := h.server.UpstreamClient()
+	if upstreamClient == nil {
+		return xerrors.New("not initialized")
+	}
+
+	commandRequest := dlvapi.DebuggerCommand{Name: dlvapi.Next}
+	var commandResponse dlvrpc.CommandOut
+	return upstreamClient.Call(dlv.FQMN("Next"), &commandRequest, &commandResponse)
+}
+
+type StepIn struct{}
+type StepOut struct{}
+
+func (h *RPCHandler) Step(req *StepIn, resp *StepOut) error {
+	upstreamClient := h.server.UpstreamClient()
+	if upstreamClient == nil {
+		return xerrors.New("not initialized")
+	}
+
+	commandRequest := dlvapi.DebuggerCommand{Name: dlvapi.Step}
+	var commandResponse dlvrpc.CommandOut
+	return upstreamClient.Call(dlv.FQMN("Step"), &commandRequest, &commandResponse)
+}
+
+type StepoutIn struct{}
+type StepoutOut struct{}
+
+func (h *RPCHandler) Stepout(req *StepoutIn, resp *StepoutOut) error {
+	upstreamClient := h.server.UpstreamClient()
+	if upstreamClient == nil {
+		return xerrors.New("not initialized")
+	}
+
+	commandRequest := dlvapi.DebuggerCommand{Name: dlvapi.StepOut}
+	var commandResponse dlvrpc.CommandOut
+	return upstreamClient.Call(dlv.FQMN("Stepout"), &commandRequest, &commandResponse)
+}
+
 func NewRPCHandler(server *Server, ctx context.Context) *RPCHandler {
 	return &RPCHandler{
 		server: server,
