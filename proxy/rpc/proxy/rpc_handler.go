@@ -7,6 +7,7 @@ import (
 	"net/rpc"
 	"reflect"
 
+	dlvrpc "github.com/go-delve/delve/service/rpc2"
 	"github.com/ovandriyanov/dlvim/proxy/rpc/dlv"
 	"github.com/ovandriyanov/dlvim/proxy/vimevent"
 )
@@ -31,7 +32,7 @@ type RPCHandler struct {
 	events    chan<- vimevent.Event
 }
 
-func (h *RPCHandler) defaultHandler(method string, req map[string]interface{}, resp *map[string]interface{}) error {
+func (h *RPCHandler) defaultHandler(method string, req interface{}, resp interface{}) error {
 	return h.dlvClient.Call(method, req, resp)
 }
 
@@ -80,7 +81,7 @@ func NewRPCHandler(dlvClient *rpc.Client, events chan<- vimevent.Event, ctx cont
 	}
 }
 
-func (h *RPCHandler) Command(req map[string]interface{}, resp *map[string]interface{}) error {
+func (h *RPCHandler) Command(req map[string]interface{}, resp *dlvrpc.CommandOut) error {
 	select {
 	case h.events <- &vimevent.CommandIssued{}:
 	case <-h.ctx.Done():
@@ -92,7 +93,7 @@ func (h *RPCHandler) Command(req map[string]interface{}, resp *map[string]interf
 	}
 
 	select {
-	case h.events <- &vimevent.StateUpdated{}:
+	case h.events <- &vimevent.StateUpdated{State: &resp.State}:
 	case <-h.ctx.Done():
 	}
 	return nil

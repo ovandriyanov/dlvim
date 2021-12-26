@@ -3,65 +3,14 @@
 package proxy
 
 import (
-	"encoding/json"
-	"log"
+	json "encoding/json"
+	dlvrpc "github.com/go-delve/delve/service/rpc2"
+	log "log"
 )
 
 type LoggingRPCHandler struct {
 	serverName string
 	wrappedHandler *RPCHandler
-}
-
-func (h *LoggingRPCHandler) CreateBreakpoint(request map[string]interface{}, response *map[string]interface{}) error {
-	marshaledRequest, _ := json.Marshal(request)
-	log.Printf("%s: <-- CreateBreakpoint %s\n", h.serverName, string(marshaledRequest))
-	err := h.wrappedHandler.CreateBreakpoint(request, response)
-	if err != nil {
-		log.Printf("%s: --> CreateBreakpoint error %v\n", h.serverName, err)
-		return err
-	}
-	marshaledResponse, _ := json.Marshal(response)
-	log.Printf("%s: --> CreateBreakpoint %s\n", h.serverName, string(marshaledResponse))
-	return nil
-}
-
-func (h *LoggingRPCHandler) AmendBreakpoint(request map[string]interface{}, response *map[string]interface{}) error {
-	marshaledRequest, _ := json.Marshal(request)
-	log.Printf("%s: <-- AmendBreakpoint %s\n", h.serverName, string(marshaledRequest))
-	err := h.wrappedHandler.AmendBreakpoint(request, response)
-	if err != nil {
-		log.Printf("%s: --> AmendBreakpoint error %v\n", h.serverName, err)
-		return err
-	}
-	marshaledResponse, _ := json.Marshal(response)
-	log.Printf("%s: --> AmendBreakpoint %s\n", h.serverName, string(marshaledResponse))
-	return nil
-}
-
-func (h *LoggingRPCHandler) ClearBreakpoint(request map[string]interface{}, response *map[string]interface{}) error {
-	marshaledRequest, _ := json.Marshal(request)
-	log.Printf("%s: <-- ClearBreakpoint %s\n", h.serverName, string(marshaledRequest))
-	err := h.wrappedHandler.ClearBreakpoint(request, response)
-	if err != nil {
-		log.Printf("%s: --> ClearBreakpoint error %v\n", h.serverName, err)
-		return err
-	}
-	marshaledResponse, _ := json.Marshal(response)
-	log.Printf("%s: --> ClearBreakpoint %s\n", h.serverName, string(marshaledResponse))
-	return nil
-}
-
-func (h *LoggingRPCHandler) Command(request map[string]interface{}, response *map[string]interface{}) error {
-	marshaledRequest, _ := json.Marshal(request)
-	log.Printf("%s: <-- Command %s\n", h.serverName, string(marshaledRequest))
-	err := h.wrappedHandler.Command(request, response)
-	if err != nil {
-		log.Printf("%s: --> Command error %v\n", h.serverName, err)
-		return err
-	}
-	marshaledResponse, _ := json.Marshal(response)
-	log.Printf("%s: --> Command %s\n", h.serverName, string(marshaledResponse))
-	return nil
 }
 
 func (h *LoggingRPCHandler) SetApiVersion(request map[string]interface{}, response *map[string]interface{}) error {
@@ -269,6 +218,58 @@ func (h *LoggingRPCHandler) ListGoroutines(request map[string]interface{}, respo
 	}
 	marshaledResponse, _ := json.Marshal(response)
 	log.Printf("%s: --> ListGoroutines %s\n", h.serverName, string(marshaledResponse))
+	return nil
+}
+
+func (h *LoggingRPCHandler) CreateBreakpoint(request map[string]interface{}, response *map[string]interface{}) error {
+	marshaledRequest, _ := json.Marshal(request)
+	log.Printf("%s: <-- CreateBreakpoint %s\n", h.serverName, string(marshaledRequest))
+	err := h.wrappedHandler.CreateBreakpoint(request, response)
+	if err != nil {
+		log.Printf("%s: --> CreateBreakpoint error %v\n", h.serverName, err)
+		return err
+	}
+	marshaledResponse, _ := json.Marshal(response)
+	log.Printf("%s: --> CreateBreakpoint %s\n", h.serverName, string(marshaledResponse))
+	return nil
+}
+
+func (h *LoggingRPCHandler) AmendBreakpoint(request map[string]interface{}, response *map[string]interface{}) error {
+	marshaledRequest, _ := json.Marshal(request)
+	log.Printf("%s: <-- AmendBreakpoint %s\n", h.serverName, string(marshaledRequest))
+	err := h.wrappedHandler.AmendBreakpoint(request, response)
+	if err != nil {
+		log.Printf("%s: --> AmendBreakpoint error %v\n", h.serverName, err)
+		return err
+	}
+	marshaledResponse, _ := json.Marshal(response)
+	log.Printf("%s: --> AmendBreakpoint %s\n", h.serverName, string(marshaledResponse))
+	return nil
+}
+
+func (h *LoggingRPCHandler) ClearBreakpoint(request map[string]interface{}, response *map[string]interface{}) error {
+	marshaledRequest, _ := json.Marshal(request)
+	log.Printf("%s: <-- ClearBreakpoint %s\n", h.serverName, string(marshaledRequest))
+	err := h.wrappedHandler.ClearBreakpoint(request, response)
+	if err != nil {
+		log.Printf("%s: --> ClearBreakpoint error %v\n", h.serverName, err)
+		return err
+	}
+	marshaledResponse, _ := json.Marshal(response)
+	log.Printf("%s: --> ClearBreakpoint %s\n", h.serverName, string(marshaledResponse))
+	return nil
+}
+
+func (h *LoggingRPCHandler) Command(request map[string]interface{}, response *dlvrpc.CommandOut) error {
+	marshaledRequest, _ := json.Marshal(request)
+	log.Printf("%s: <-- Command %s\n", h.serverName, string(marshaledRequest))
+	err := h.wrappedHandler.Command(request, response)
+	if err != nil {
+		log.Printf("%s: --> Command error %v\n", h.serverName, err)
+		return err
+	}
+	marshaledResponse, _ := json.Marshal(response)
+	log.Printf("%s: --> Command %s\n", h.serverName, string(marshaledResponse))
 	return nil
 }
 

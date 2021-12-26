@@ -3,8 +3,8 @@
 package vim
 
 import (
-	"encoding/json"
-	"log"
+	json "encoding/json"
+	log "log"
 )
 
 type LoggingRPCHandler struct {
