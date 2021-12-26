@@ -193,7 +193,6 @@ func (h *RPCHandler) CreateOrDeleteBreakpoint(req *CreateOrDeleteBreakpointIn, r
 				if err := upstreamClient.Call(dlv.FQMN("ClearBreakpoint"), &clearBreakpointRequest, &clearBreakpointResponse); err != nil {
 					return xerrors.Errorf("cannot clear breakpoint %d: %w", breakpoint.ID, err)
 				}
-				log.Printf("ClearBreakpoint response: %v\n", jsonDump(clearBreakpointResponse))
 				return nil
 			}
 		}
@@ -209,7 +208,6 @@ func (h *RPCHandler) CreateOrDeleteBreakpoint(req *CreateOrDeleteBreakpointIn, r
 		return xerrors.Errorf("cannot create breakpoint: %w", err)
 	}
 
-	log.Printf("CreateBreakpoint response: %v\n", jsonDump(createBreakpointResponse))
 	return nil
 }
 
