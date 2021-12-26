@@ -182,7 +182,7 @@ function! s:on_command_issued(session, event_payload) abort
 endfunction
 
 function! s:on_state_updated(session, event_payload) abort
-    call s:update_state(a:session, event_payload.state)
+    call s:update_state(a:session, a:event_payload.state)
 endfunction
 
 function! s:update_breakpoints(session) abort
