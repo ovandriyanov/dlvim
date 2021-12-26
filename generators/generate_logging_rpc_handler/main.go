@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 
 	"go/ast"
 	"go/parser"
@@ -36,11 +37,7 @@ func writeOutput(packageName string, rpcHandlerTypeName string, rpcMethods []rpc
 	fmt.Fprintf(writer, "\n")
 	fmt.Fprintf(writer, "package %s\n", packageName)
 	fmt.Fprintf(writer, "\n")
-	fmt.Fprintf(writer, "import (\n")
-	fmt.Fprintf(writer, "\t\"encoding/json\"\n")
-	fmt.Fprintf(writer, "\t\"log\"\n")
-	fmt.Fprintf(writer, ")\n")
-	fmt.Fprintf(writer, "\n")
+	writeImports(rpcMethods, writer)
 	fmt.Fprintf(writer, "type Logging%s struct {\n", rpcHandlerTypeName)
 	fmt.Fprintf(writer, "\tserverName string\n")
 	fmt.Fprintf(writer, "\twrappedHandler *%s\n", rpcHandlerTypeName)
@@ -48,7 +45,7 @@ func writeOutput(packageName string, rpcHandlerTypeName string, rpcMethods []rpc
 	fmt.Fprintf(writer, "\n")
 
 	for _, rpcMethod := range rpcMethods {
-		fmt.Fprintf(writer, "func (h *Logging%s) %s(request %s, response %s) error {\n", rpcHandlerTypeName, rpcMethod.name, rpcMethod.requestType, rpcMethod.responseType)
+		fmt.Fprintf(writer, "func (h *Logging%s) %s(request %s, response %s) error {\n", rpcHandlerTypeName, rpcMethod.name, rpcMethod.requestType.expression, rpcMethod.responseType.expression)
 		fmt.Fprintf(writer, "\tmarshaledRequest, _ := json.Marshal(request)\n")
 		fmt.Fprintf(writer, "\tlog.Printf(\"%%s: <-- %s %%s\\n\", h.serverName, string(marshaledRequest))\n", rpcMethod.name)
 		fmt.Fprintf(writer, "\terr := h.wrappedHandler.%s(request, response)\n", rpcMethod.name)
@@ -71,6 +68,34 @@ func writeOutput(packageName string, rpcHandlerTypeName string, rpcMethods []rpc
 	fmt.Fprintf(writer, "}\n")
 }
 
+func writeImports(rpcMethods []rpcMethod, writer io.Writer) {
+	importByName := map[string]*ast.ImportSpec{
+		"json": {Name: &ast.Ident{Name: "json"}, Path: &ast.BasicLit{Value: `"encoding/json"`}},
+		"log":  {Name: &ast.Ident{Name: "log"}, Path: &ast.BasicLit{Value: `"log"`}},
+	}
+	for _, method := range rpcMethods {
+		if requestImport := method.requestType.importSpec; requestImport != nil {
+			importByName[requestImport.Name.String()] = requestImport
+		}
+		if responseImport := method.responseType.importSpec; responseImport != nil {
+			importByName[responseImport.Name.String()] = responseImport
+		}
+	}
+
+	sortedImports := make([]*ast.ImportSpec, 0, len(importByName))
+	for _, oneImport := range importByName {
+		sortedImports = append(sortedImports, oneImport)
+	}
+	sort.Slice(sortedImports, func(i, j int) bool { return sortedImports[i].Path.Value < sortedImports[j].Path.Value })
+
+	fmt.Fprintf(writer, "import (\n")
+	for _, oneImport := range sortedImports {
+		fmt.Fprintf(writer, "\t%s %s\n", oneImport.Name.String(), oneImport.Path.Value)
+	}
+	fmt.Fprintf(writer, ")\n")
+	fmt.Fprintf(writer, "\n")
+}
+
 func parseAST(directoryName string) *ast.Package {
 	fileSet := token.NewFileSet()
 	packages, err := parser.ParseDir(fileSet, directoryName, nil, parser.AllErrors)
@@ -90,15 +115,24 @@ func parseAST(directoryName string) *ast.Package {
 	return nil
 }
 
+type typeDescription struct {
+	expression string
+	importSpec *ast.ImportSpec
+}
+
 type rpcMethod struct {
 	name         string
-	requestType  string
-	responseType string
+	requestType  typeDescription
+	responseType typeDescription
 }
 
 func listRPCMethods(packageAST *ast.Package, rpcHandlerTypeName string) []rpcMethod {
 	var methods []rpcMethod
 	for _, astFile := range packageAST.Files {
+		fileImports := map[string]*ast.ImportSpec{}
+		for _, importSpec := range astFile.Imports {
+			fileImports[importSpec.Name.String()] = importSpec
+		}
 		for _, declaration := range astFile.Decls {
 			functionDeclaration, ok := declaration.(*ast.FuncDecl)
 			if !ok {
@@ -108,6 +142,19 @@ func listRPCMethods(packageAST *ast.Package, rpcHandlerTypeName string) []rpcMet
 			if receiverDeclaration == nil || len(receiverDeclaration.List) == 0 {
 				continue
 			}
+			receiverField := receiverDeclaration.List[0]
+			receiverExpression, ok := receiverField.Type.(*ast.StarExpr)
+			if !ok {
+				continue
+			}
+			receiverIdentifier, ok := receiverExpression.X.(*ast.Ident)
+			if !ok {
+				continue
+			}
+			if receiverIdentifier.String() != rpcHandlerTypeName {
+				continue
+			}
+
 			if functionDeclaration.Name == nil || !functionDeclaration.Name.IsExported() {
 				continue
 			}
@@ -125,7 +172,16 @@ func listRPCMethods(packageAST *ast.Package, rpcHandlerTypeName string) []rpcMet
 			if requestParam.Type == nil {
 				continue
 			}
-			requestTypeString := types.ExprString(requestParam.Type)
+			var requestImportSpec *ast.ImportSpec
+			if starExpr, ok := requestParam.Type.(*ast.StarExpr); ok {
+				if selectorExpr, ok := starExpr.X.(*ast.SelectorExpr); ok {
+					requestImportSpec = fileImports[types.ExprString(selectorExpr.X)]
+				}
+			}
+			requestTypeDescription := typeDescription{
+				expression: types.ExprString(requestParam.Type),
+				importSpec: requestImportSpec,
+			}
 
 			responseParam := paramsList[1]
 			if len(responseParam.Names) != 1 {
@@ -134,7 +190,16 @@ func listRPCMethods(packageAST *ast.Package, rpcHandlerTypeName string) []rpcMet
 			if responseParam.Type == nil {
 				continue
 			}
-			responseTypeString := types.ExprString(responseParam.Type)
+			var responseImportSpec *ast.ImportSpec
+			if starExpr, ok := responseParam.Type.(*ast.StarExpr); ok {
+				if selectorExpr, ok := starExpr.X.(*ast.SelectorExpr); ok {
+					responseImportSpec = fileImports[types.ExprString(selectorExpr.X)]
+				}
+			}
+			responseTypeDescription := typeDescription{
+				expression: types.ExprString(responseParam.Type),
+				importSpec: responseImportSpec,
+			}
 
 			resultsList := functionDeclaration.Type.Results.List
 			if resultsList == nil || len(resultsList) != 1 {
@@ -148,23 +213,10 @@ func listRPCMethods(packageAST *ast.Package, rpcHandlerTypeName string) []rpcMet
 				continue
 			}
 
-			receiverField := receiverDeclaration.List[0]
-			receiverExpression, ok := receiverField.Type.(*ast.StarExpr)
-			if !ok {
-				continue
-			}
-			receiverIdentifier, ok := receiverExpression.X.(*ast.Ident)
-			if !ok {
-				continue
-			}
-			if receiverIdentifier.String() != rpcHandlerTypeName {
-				continue
-			}
-
 			methods = append(methods, rpcMethod{
 				name:         functionDeclaration.Name.String(),
-				requestType:  requestTypeString,
-				responseType: responseTypeString,
+				requestType:  requestTypeDescription,
+				responseType: responseTypeDescription,
 			})
 		}
 	}
