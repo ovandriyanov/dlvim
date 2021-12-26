@@ -199,6 +199,10 @@ endfunction
 function! s:update_state(session, state) abort
     call s:clear_current_instruction_sign(a:session)
     let l:current_goroutine = get(a:state, 'currentGoroutine', v:null)
+    if a:state.exited
+        echom 'Program exited with status ' .. a:state.exitStatus
+        return
+    endif
     if type(l:current_goroutine) == type(v:null)
         return
     endif
