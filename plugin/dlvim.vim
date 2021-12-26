@@ -97,7 +97,7 @@ function! s:on_continue_execution_response(session, channel, response) abort
     if has_key(a:response, 'Error')
         call s:print_error('cannot continue execution: ' .. a:response.Error)
     endif
-    call s:update_state(a:session)
+    call s:update_state(a:session, a:response.state)
 endfunction
 
 function! s:next_instruction() abort
@@ -116,7 +116,7 @@ function! s:on_next_instruction_response(session, channel, response) abort
     if has_key(a:response, 'Error')
         call s:print_error('cannot go to the next instruction: ' .. a:response.Error)
     endif
-    call s:update_state(a:session)
+    call s:update_state(a:session, a:response.state)
 endfunction
 
 function! s:step_one_instruction() abort
@@ -135,7 +135,7 @@ function! s:on_step_one_instruction_response(session, channel, response) abort
     if has_key(a:response, 'Error')
         call s:print_error('cannot step one instruction: ' .. a:response.Error)
     endif
-    call s:update_state(a:session)
+    call s:update_state(a:session, a:response.state)
 endfunction
 
 function! s:step_out() abort
@@ -154,7 +154,7 @@ function! s:on_step_out_response(session, channel, response) abort
     if has_key(a:response, 'Error')
         call s:print_error('cannot step out: ' .. a:response.Error)
     endif
-    call s:update_state(a:session)
+    call s:update_state(a:session, a:response.state)
 endfunction
 
 function! s:print_error(message) abort
@@ -182,7 +182,7 @@ function! s:on_command_issued(session, event_payload) abort
 endfunction
 
 function! s:on_state_updated(session, event_payload) abort
-    call s:update_state(a:session)
+    call s:update_state(a:session, event_payload.state)
 endfunction
 
 function! s:update_breakpoints(session) abort
@@ -196,28 +196,29 @@ function! s:update_breakpoints(session) abort
     call s:update_breakpoints_buffer(a:session)
 endfunction
 
-function! s:update_state(session) abort
+function! s:update_state(session, state) abort
     call s:clear_current_instruction_sign(a:session)
-
-    let l:response = ch_evalexpr(a:session.proxy_job, ['GetState', {}])
-    if has_key(l:response, 'Error')
-        throw printf('cannot get state: %s', l:response.Error)
-    endif
-    if type(get(l:response, 'state', v:null)) == type(v:null)
+    let l:current_goroutine = get(a:state, 'currentGoroutine', v:null)
+    if type(l:current_goroutine) == type(v:null)
         return
     endif
-    call s:set_current_instruction_sign(a:session, l:response.state)
+    let l:user_current_loc = get(l:current_goroutine, 'userCurrentLoc', v:null)
+    if type(l:user_current_loc) == type(v:null)
+        return
+    endif
+
+    call s:set_current_instruction_sign(a:session, l:user_current_loc)
 endfunction
 
 function! s:clear_current_instruction_sign(session) abort
     call sign_unplace(a:session.current_instruction_sign_group)
 endfunction
 
-function! s:set_current_instruction_sign(session, state) abort
+function! s:set_current_instruction_sign(session, location) abort
     let l:arbitrary_id = 1 " we only have one current instruction at a time, so we pick an arbitrary id
-    let l:place_result = sign_place(l:arbitrary_id, a:session.current_instruction_sign_group, 'DlvimCurrentInstruction', a:state.file, {'lnum': a:state.line})
+    let l:place_result = sign_place(l:arbitrary_id, a:session.current_instruction_sign_group, 'DlvimCurrentInstruction', a:location.file, {'lnum': a:location.line})
     if l:place_result == -1
-        call s:print_error('cannot set current instruction sign at ' json_encode(a:state))
+        call s:print_error('cannot set current instruction sign at ' json_encode(a:location))
     endif
 endfunction
 

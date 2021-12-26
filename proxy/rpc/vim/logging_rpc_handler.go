@@ -77,19 +77,6 @@ func (h *LoggingRPCHandler) CreateOrDeleteBreakpoint(request *CreateOrDeleteBrea
 	return nil
 }
 
-func (h *LoggingRPCHandler) GetState(request *GetStateIn, response *GetStateOut) error {
-	marshaledRequest, _ := json.Marshal(request)
-	log.Printf("%s: <-- GetState %s\n", h.serverName, string(marshaledRequest))
-	err := h.wrappedHandler.GetState(request, response)
-	if err != nil {
-		log.Printf("%s: --> GetState error %v\n", h.serverName, err)
-		return err
-	}
-	marshaledResponse, _ := json.Marshal(response)
-	log.Printf("%s: --> GetState %s\n", h.serverName, string(marshaledResponse))
-	return nil
-}
-
 func (h *LoggingRPCHandler) Continue(request *ContinueIn, response *ContinueOut) error {
 	marshaledRequest, _ := json.Marshal(request)
 	log.Printf("%s: <-- Continue %s\n", h.serverName, string(marshaledRequest))

@@ -211,46 +211,10 @@ func (h *RPCHandler) CreateOrDeleteBreakpoint(req *CreateOrDeleteBreakpointIn, r
 	return nil
 }
 
-type GetStateIn struct{}
-type State struct {
-	File string `json:"file"`
-	Line int    `json:"line"`
-}
-type GetStateOut struct {
-	State *State `json:"state"`
-}
-
-func (h *RPCHandler) GetState(req *GetStateIn, resp *GetStateOut) error {
-	upstreamClient := h.server.UpstreamClient()
-	if upstreamClient == nil {
-		return xerrors.New("not initialized")
-	}
-
-	getStateRequest := dlvrpc.StateIn{NonBlocking: false}
-	var getStateResponse dlvrpc.StateOut
-	if err := upstreamClient.Call(dlv.FQMN("State"), &getStateRequest, &getStateResponse); err != nil {
-		return err
-	}
-
-	state := getStateResponse.State
-	if state == nil {
-		return xerrors.New("upstream returned zero state")
-	}
-	selectedGoroutine := state.SelectedGoroutine
-	if selectedGoroutine == nil {
-		// This usually means the program finished it's execution
-		return nil
-	}
-
-	resp.State = &State{
-		File: selectedGoroutine.UserCurrentLoc.File,
-		Line: selectedGoroutine.UserCurrentLoc.Line,
-	}
-	return nil
-}
-
 type ContinueIn struct{}
-type ContinueOut struct{}
+type ContinueOut struct {
+	State *dlvapi.DebuggerState `json:"state"`
+}
 
 func (h *RPCHandler) Continue(req *ContinueIn, resp *ContinueOut) error {
 	upstreamClient := h.server.UpstreamClient()
@@ -260,11 +224,18 @@ func (h *RPCHandler) Continue(req *ContinueIn, resp *ContinueOut) error {
 
 	commandRequest := dlvapi.DebuggerCommand{Name: dlvapi.Continue}
 	var commandResponse dlvrpc.CommandOut
-	return upstreamClient.Call(dlv.FQMN("Command"), &commandRequest, &commandResponse)
+	err := upstreamClient.Call(dlv.FQMN("Command"), &commandRequest, &commandResponse)
+	if err != nil {
+		return err
+	}
+	resp.State = &commandResponse.State
+	return nil
 }
 
 type NextIn struct{}
-type NextOut struct{}
+type NextOut struct {
+	State *dlvapi.DebuggerState `json:"state"`
+}
 
 func (h *RPCHandler) Next(req *NextIn, resp *NextOut) error {
 	upstreamClient := h.server.UpstreamClient()
@@ -274,11 +245,18 @@ func (h *RPCHandler) Next(req *NextIn, resp *NextOut) error {
 
 	commandRequest := dlvapi.DebuggerCommand{Name: dlvapi.Next}
 	var commandResponse dlvrpc.CommandOut
-	return upstreamClient.Call(dlv.FQMN("Command"), &commandRequest, &commandResponse)
+	err := upstreamClient.Call(dlv.FQMN("Command"), &commandRequest, &commandResponse)
+	if err != nil {
+		return err
+	}
+	resp.State = &commandResponse.State
+	return nil
 }
 
 type StepIn struct{}
-type StepOut struct{}
+type StepOut struct {
+	State *dlvapi.DebuggerState `json:"state"`
+}
 
 func (h *RPCHandler) Step(req *StepIn, resp *StepOut) error {
 	upstreamClient := h.server.UpstreamClient()
@@ -288,11 +266,18 @@ func (h *RPCHandler) Step(req *StepIn, resp *StepOut) error {
 
 	commandRequest := dlvapi.DebuggerCommand{Name: dlvapi.Step}
 	var commandResponse dlvrpc.CommandOut
-	return upstreamClient.Call(dlv.FQMN("Command"), &commandRequest, &commandResponse)
+	err := upstreamClient.Call(dlv.FQMN("Command"), &commandRequest, &commandResponse)
+	if err != nil {
+		return err
+	}
+	resp.State = &commandResponse.State
+	return nil
 }
 
 type StepoutIn struct{}
-type StepoutOut struct{}
+type StepoutOut struct {
+	State *dlvapi.DebuggerState `json:"state"`
+}
 
 func (h *RPCHandler) Stepout(req *StepoutIn, resp *StepoutOut) error {
 	upstreamClient := h.server.UpstreamClient()
@@ -302,7 +287,12 @@ func (h *RPCHandler) Stepout(req *StepoutIn, resp *StepoutOut) error {
 
 	commandRequest := dlvapi.DebuggerCommand{Name: dlvapi.StepOut}
 	var commandResponse dlvrpc.CommandOut
-	return upstreamClient.Call(dlv.FQMN("Command"), &commandRequest, &commandResponse)
+	err := upstreamClient.Call(dlv.FQMN("Command"), &commandRequest, &commandResponse)
+	if err != nil {
+		return err
+	}
+	resp.State = &commandResponse.State
+	return nil
 }
 
 func NewRPCHandler(server *Server, ctx context.Context) *RPCHandler {

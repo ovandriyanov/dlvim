@@ -79,7 +79,7 @@ func (s *Server) handleClient(ctx context.Context, clientConn io.ReadWriteCloser
 	handler := NewRPCHandler(dlvClient, s.events, ctx)
 	var receiver interface{} = handler
 	if s.debugRPC {
-		receiver = NewLoggingRPCHandler(handler, "proxy")
+		receiver = NewLoggingRPCHandler(handler, "proxy server")
 	}
 	srv.RegisterName(dlv.ServiceName, receiver)
 	rpcDone := make(chan struct{})

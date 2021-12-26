@@ -46,7 +46,7 @@ func (s *Server) HandleClient(ctx context.Context, clientConn io.ReadWriteCloser
 	rpcHandler := NewRPCHandler(s, ctx)
 	var receiver interface{} = rpcHandler
 	if s.debugRPC {
-		receiver = NewLoggingRPCHandler(rpcHandler, "vim")
+		receiver = NewLoggingRPCHandler(rpcHandler, "vim server")
 	}
 	srv.RegisterName(ServiceName, receiver)
 	go func() {
