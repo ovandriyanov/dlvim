@@ -211,11 +211,22 @@ function! s:update_state(session, state) abort
         return
     endif
 
+    call s:follow_location_if_necessary(a:session, l:user_current_loc)
     call s:set_current_instruction_sign(a:session, l:user_current_loc)
 endfunction
 
 function! s:clear_current_instruction_sign(session) abort
     call sign_unplace(a:session.current_instruction_sign_group)
+endfunction
+
+" If the current buffer is not followable (buftype is not empty), do nothing.
+" Else, if the location belongs to the current buffer, check if it is visible
+" in the current window, and if not, then scroll to it, and then return.
+" Otherwise open the buffer containing the given location in the current
+" window (or open a new window if the current buffer cannot be abandoned) and
+" jump to the location.
+function! s:follow_location_if_necessary(session, location) abort
+    " TODO: implement 
 endfunction
 
 function! s:set_current_instruction_sign(session, location) abort
