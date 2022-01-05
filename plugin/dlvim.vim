@@ -219,7 +219,6 @@ function! s:clear_current_instruction_sign(session) abort
     call sign_unplace(a:session.current_instruction_sign_group)
 endfunction
 
-" TODO: handle calling this function when the current buffer is dlv console
 function! s:follow_location_if_necessary(location) abort
     let l:code_window_id = -1
     let l:previous_window_id = -1
