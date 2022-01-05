@@ -147,7 +147,7 @@ function! s:step_out() abort
 
     call s:clear_current_instruction_sign(l:session)
     let l:options = {'callback': function(funcref(expand('<SID>') .. 'on_step_out_response'), [l:session])}
-    call ch_sendexpr(l:session.proxy_job, ['Step', {}], l:options)
+    call ch_sendexpr(l:session.proxy_job, ['Stepout', {}], l:options)
 endfunction
 
 function! s:on_step_out_response(session, channel, response) abort
@@ -211,7 +211,7 @@ function! s:update_state(session, state) abort
         return
     endif
 
-    call s:follow_location_if_necessary(a:session, l:user_current_loc)
+    call s:follow_location_if_necessary(l:user_current_loc)
     call s:set_current_instruction_sign(a:session, l:user_current_loc)
 endfunction
 
@@ -219,14 +219,24 @@ function! s:clear_current_instruction_sign(session) abort
     call sign_unplace(a:session.current_instruction_sign_group)
 endfunction
 
-" If the current buffer is not followable (buftype is not empty), do nothing.
-" Else, if the location belongs to the current buffer, check if it is visible
-" in the current window, and if not, then scroll to it, and then return.
-" Otherwise open the buffer containing the given location in the current
-" window (or open a new window if the current buffer cannot be abandoned) and
-" jump to the location.
-function! s:follow_location_if_necessary(session, location) abort
-    " TODO: implement 
+" TODO: handle calling this function when the current buffer is dlv console
+function! s:follow_location_if_necessary(location) abort
+    if &buftype !=# ''
+        return
+    endif
+    if resolve(expand('%:p')) ==# resolve(fnamemodify(a:location.file, ':p'))
+        if a:location.line < line('w0') || a:location.line > line('w$')
+            " We are jumping outside of the current screen. Mark the current
+            " position so that we can jump back to it with Ctrl+O
+            normal! m'
+            execute a:location.line
+        endif
+    else
+        if &modified && !&hidden
+            split
+        endif
+        execute 'edit' '+' .. a:location.line a:location.file
+    endif
 endfunction
 
 function! s:set_current_instruction_sign(session, location) abort
