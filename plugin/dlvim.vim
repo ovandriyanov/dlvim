@@ -221,9 +221,27 @@ endfunction
 
 " TODO: handle calling this function when the current buffer is dlv console
 function! s:follow_location_if_necessary(location) abort
+    let l:code_window_id = -1
+    let l:previous_window_id = -1
+    let l:current_window_number = 1
     if &buftype !=# ''
-        return
+        let l:previous_window_id = win_getid()
+        for l:buffer in tabpagebuflist()
+            if getbufvar(l:buffer, '&buftype') ==# ''
+                let l:code_window_id = win_getid(l:current_window_number)
+                break
+            endif
+            let l:current_window_number += 1
+        endfor
+
+        if l:code_window_id == -1
+            split
+            let l:code_window_id = win_getid()
+        else
+            call win_gotoid(l:code_window_id)
+        endif
     endif
+
     if resolve(expand('%:p')) ==# resolve(fnamemodify(a:location.file, ':p'))
         if a:location.line < line('w0') || a:location.line > line('w$')
             " We are jumping outside of the current screen. Mark the current
@@ -236,6 +254,10 @@ function! s:follow_location_if_necessary(location) abort
             split
         endif
         execute 'edit' '+' .. a:location.line a:location.file
+    endif
+
+    if l:previous_window_id != -1
+        call win_gotoid(l:previous_window_id)
     endif
 endfunction
 
