@@ -1,9 +1,9 @@
 command! -nargs=+ Dlv call s:start_session([<f-args>])
 command! DlvBreak     call s:create_or_delete_breakpoint_on_the_current_line()
-command! DlvContinue  call s:continue_execution()
-command! DlvNext      call s:next_instruction()
-command! DlvStep      call s:step_one_instruction()
-command! DlvStepout   call s:step_out()
+command! DlvContinue  call s:run_command('Continue', 'continue execution')
+command! DlvNext      call s:run_command('Next', 'go to the next instruction')
+command! DlvStep      call s:run_command('Step', 'step one instruction')
+command! DlvStepout   call s:run_command('Stepout', 'step out')
 
 let s:repository_root = fnamemodify(expand('<sfile>'), ':h:h')
 let s:proxy_path = s:repository_root .. '/proxy/proxy'
@@ -81,7 +81,7 @@ function! s:create_or_delete_breakpoint_on_the_current_line() abort
     call s:update_breakpoints(l:session)
 endfunction
 
-function! s:continue_execution() abort
+function s:run_command(command_name, command_description) abort
     let l:session = g:dlvim.current_session
     if type(l:session) == type(v:null)
         call s:print_error( 'No debugging session is currently in progress')
@@ -89,70 +89,13 @@ function! s:continue_execution() abort
     endif
 
     call s:clear_current_instruction_sign(l:session)
-    let l:options = {'callback': function(funcref(expand('<SID>') .. 'on_continue_execution_response'), [l:session])}
-    call ch_sendexpr(l:session.proxy_job, ['Continue', {}], l:options)
+    let l:options = {'callback': function(funcref(expand('<SID>') .. 'on_run_command_response'), [l:session, a:command_description])}
+    call ch_sendexpr(l:session.proxy_job, [a:command_name, {}], l:options)
 endfunction
 
-function! s:on_continue_execution_response(session, channel, response) abort
+function! s:on_run_command_response(session, command_description, channel, response) abort
     if has_key(a:response, 'Error')
-        call s:print_error('cannot continue execution: ' .. a:response.Error)
-    endif
-    call s:update_state(a:session, a:response.state)
-endfunction
-
-function! s:next_instruction() abort
-    let l:session = g:dlvim.current_session
-    if type(l:session) == type(v:null)
-        call s:print_error( 'No debugging session is currently in progress')
-        return
-    endif
-
-    call s:clear_current_instruction_sign(l:session)
-    let l:options = {'callback': function(funcref(expand('<SID>') .. 'on_next_instruction_response'), [l:session])}
-    call ch_sendexpr(l:session.proxy_job, ['Next', {}], l:options)
-endfunction
-
-function! s:on_next_instruction_response(session, channel, response) abort
-    if has_key(a:response, 'Error')
-        call s:print_error('cannot go to the next instruction: ' .. a:response.Error)
-    endif
-    call s:update_state(a:session, a:response.state)
-endfunction
-
-function! s:step_one_instruction() abort
-    let l:session = g:dlvim.current_session
-    if type(l:session) == type(v:null)
-        call s:print_error( 'No debugging session is currently in progress')
-        return
-    endif
-
-    call s:clear_current_instruction_sign(l:session)
-    let l:options = {'callback': function(funcref(expand('<SID>') .. 'on_step_one_instruction_response'), [l:session])}
-    call ch_sendexpr(l:session.proxy_job, ['Step', {}], l:options)
-endfunction
-
-function! s:on_step_one_instruction_response(session, channel, response) abort
-    if has_key(a:response, 'Error')
-        call s:print_error('cannot step one instruction: ' .. a:response.Error)
-    endif
-    call s:update_state(a:session, a:response.state)
-endfunction
-
-function! s:step_out() abort
-    let l:session = g:dlvim.current_session
-    if type(l:session) == type(v:null)
-        call s:print_error( 'No debugging session is currently in progress')
-        return
-    endif
-
-    call s:clear_current_instruction_sign(l:session)
-    let l:options = {'callback': function(funcref(expand('<SID>') .. 'on_step_out_response'), [l:session])}
-    call ch_sendexpr(l:session.proxy_job, ['Stepout', {}], l:options)
-endfunction
-
-function! s:on_step_out_response(session, channel, response) abort
-    if has_key(a:response, 'Error')
-        call s:print_error('cannot step out: ' .. a:response.Error)
+        call s:print_error(printf('cannot %s: %s', a:command_description, a:response.Error))
     endif
     call s:update_state(a:session, a:response.state)
 endfunction
