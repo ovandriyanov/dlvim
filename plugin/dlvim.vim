@@ -89,6 +89,7 @@ function s:run_command(command_name, command_description) abort
     endif
 
     call s:clear_current_instruction_sign(l:session)
+    call s:clear_stack_buffer(l:session)
     let l:options = {'callback': function(funcref(expand('<SID>') .. 'on_run_command_response'), [l:session, a:command_description])}
     call ch_sendexpr(l:session.proxy_job, [a:command_name, {}], l:options)
 endfunction
@@ -96,6 +97,10 @@ endfunction
 function! s:on_run_command_response(session, command_description, channel, response) abort
     if has_key(a:response, 'Error')
         call s:print_error(printf('cannot %s: %s', a:command_description, a:response.Error))
+    endif
+
+    if type(a:response.stack_trace) != type(v:null)
+        call s:update_stack_buffer(a:session, a:response.stack_trace)
     endif
     call s:update_state(a:session, a:response.state)
 endfunction
@@ -105,16 +110,6 @@ function! s:print_error(message) abort
     echomsg a:message
     echohl None
 endfunction
-
-" function! s:go_to_code_window(session) abort
-"     let [l:tabnr, l:winnr] = win_id2tabwin(a:session.code_window_id)
-"     if [l:tabnr, l:winnr] == [0, 0]
-"         new
-"         let a:session.code_window_id = win_getid()
-"     else
-"         call win_gotoid(a:session.code_window_id)
-"     endif
-" endfunction
 
 function! s:on_breakpoints_updated(session, event_payload) abort
     call s:update_breakpoints(a:session)
@@ -160,6 +155,26 @@ endfunction
 
 function! s:clear_current_instruction_sign(session) abort
     call sign_unplace(a:session.current_instruction_sign_group)
+endfunction
+
+function! s:clear_stack_buffer(session) abort
+    let l:stack_buffer = a:session.buffers.stack.number
+    call deletebufline(l:stack_buffer, 1, '$')
+endfunction
+
+function! s:update_stack_buffer(session, stack_trace) abort
+    let l:stack_windows_cursor_positions = s:save_cursor_positions('stack')
+
+    let l:stack_buffer = a:session.buffers.stack.number
+    call deletebufline(l:stack_buffer, 1, '$') " Delete everything
+    let l:line = 0
+    for l:stack_frame in a:stack_trace
+        call appendbufline(l:stack_buffer, l:line, json_encode(l:stack_frame))
+        let l:line += 1
+    endfor
+    call deletebufline(l:stack_buffer, '$') " Delete the last line
+
+    call s:restore_cursor_positions(l:stack_windows_cursor_positions)
 endfunction
 
 function! s:follow_location_if_necessary(location) abort
@@ -211,34 +226,42 @@ function! s:set_current_instruction_sign(session, location) abort
     endif
 endfunction
 
-function! s:update_breakpoints_buffer(session) abort
-    " Save window cursor positions
+function! s:save_cursor_positions(subtab_name) abort
     let l:winnr = 0
-    let l:breakpoint_window_cursor_positions = {}
+    let l:window_cursor_positions = {}
     for l:bufnr in tabpagebuflist()
         let l:winnr += 1
         let l:dlvim = getbufvar(l:bufnr, 'dlvim', v:null)
-        if type(l:dlvim) == type(v:null) || l:dlvim.subtab_name !=# 'breakpoints'
+        if type(l:dlvim) == type(v:null) || l:dlvim.subtab_name !=# a:subtab_name
             continue
         endif
-        let l:breakpoint_window_cursor_positions[l:winnr] = getcurpos(l:winnr)[1:]
+        let l:window_cursor_positions[l:winnr] = getcurpos(l:winnr)[1:]
     endfor
+    return l:window_cursor_positions
+endfunction
 
-    " Update the buffer
-    let l:breakpoints_buffer = a:session.buffers.breakpoints.number
-    call deletebufline(l:breakpoints_buffer, 1, '$') " Delete everything
-    for l:breakpoint in a:session.breakpoints
-        call appendbufline(l:breakpoints_buffer, 0, json_encode(l:breakpoint))
-    endfor
-    call deletebufline(l:breakpoints_buffer, '$') " Delete the last line
-
-    " Restore window cursor positions
+function! s:restore_cursor_positions(window_cursor_positions) abort
     let l:old_window_id = win_getid()
-    for [l:winnr, l:cursor_position] in items(l:breakpoint_window_cursor_positions)
+    for [l:winnr, l:cursor_position] in items(a:window_cursor_positions)
         call win_gotoid(win_getid(l:winnr))
         call cursor(l:cursor_position)
     endfor
     call win_gotoid(l:old_window_id)
+endfunction
+
+function! s:update_breakpoints_buffer(session) abort
+    let l:breakpoint_windows_cursor_positions = s:save_cursor_positions('breakpoints')
+
+    let l:breakpoints_buffer = a:session.buffers.breakpoints.number
+    call deletebufline(l:breakpoints_buffer, 1, '$') " Delete everything
+    let l:line = 0
+    for l:breakpoint in a:session.breakpoints
+        call appendbufline(l:breakpoints_buffer, l:line, json_encode(l:breakpoint))
+        let l:line += 1
+    endfor
+    call deletebufline(l:breakpoints_buffer, '$') " Delete the last line
+
+    call s:restore_cursor_positions(l:breakpoint_windows_cursor_positions)
 endfunction
 
 let s:event_handlers = {

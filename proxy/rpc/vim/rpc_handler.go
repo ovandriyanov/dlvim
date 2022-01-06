@@ -218,7 +218,7 @@ type StackFrame struct {
 
 type CommandOut struct {
 	State      *dlvapi.DebuggerState `json:"state"`
-	StackTrace []StackFrame          `json:"stacktrace"`
+	StackTrace []StackFrame          `json:"stack_trace"`
 }
 
 type ContinueIn struct{}
