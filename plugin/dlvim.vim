@@ -414,13 +414,21 @@ function! s:create_buffers(session)
     return l:buffers
 endfunction
 
+let g:dlvim_debug_rpc = 0
+
 function! s:create_proxy_job(session, dlv_argv, proxy_log_file) abort
     let l:job_options = {
     \      'mode':      'json',
     \      'err_io':    'file',
     \      'err_name':  a:proxy_log_file,
     \ }
-    let l:job = job_start([s:proxy_path, '--debug-rpc'], l:job_options)
+
+    let l:job_args = []
+    if g:dlvim_debug_rpc
+        let l:job_args += ['--debug-rpc']
+    endif
+
+    let l:job = job_start([s:proxy_path] + l:job_args, l:job_options)
 
     let l:init_response = ch_evalexpr(l:job, ['Initialize', {'dlv_argv': a:dlv_argv}])
     if has_key(l:init_response, 'Error')
