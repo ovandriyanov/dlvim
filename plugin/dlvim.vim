@@ -117,6 +117,7 @@ endfunction
 function! s:on_run_command_response(session, command_description, channel, response) abort
     if has_key(a:response, 'Error')
         call s:print_error(printf('cannot %s: %s', a:command_description, a:response.Error))
+        return
     endif
 
     if type(a:response.stack_trace) != type(v:null)
