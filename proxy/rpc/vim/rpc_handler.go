@@ -280,11 +280,13 @@ func (h *RPCHandler) Stepout(req *StepoutIn, resp *StepoutOut) error {
 	return h.command(dlvapi.StepOut, (*CommandOut)(resp))
 }
 
-type UpIn struct{}
-type UpOut struct {
+type StackFrameOut struct {
 	StackTrace   []StackFrame `json:"stack_trace"`
 	CurrentFrame int          `json:"current_stack_frame"`
 }
+
+type UpIn struct{}
+type UpOut StackFrameOut
 
 func (h *RPCHandler) Up(req *UpIn, resp *UpOut) error {
 	if err := h.server.inventory.stack.Up(); err != nil {
@@ -298,16 +300,29 @@ func (h *RPCHandler) Up(req *UpIn, resp *UpOut) error {
 }
 
 type DownIn struct{}
-type DownOut struct {
-	StackTrace   []StackFrame `json:"stack_trace"`
-	CurrentFrame int          `json:"current_stack_frame"`
-}
+type DownOut StackFrameOut
 
 func (h *RPCHandler) Down(req *DownIn, resp *DownOut) error {
 	if err := h.server.inventory.stack.Down(); err != nil {
 		return err
 	}
 	*resp = DownOut{
+		StackTrace:   h.server.inventory.stack.Trace(),
+		CurrentFrame: h.server.inventory.stack.CurrentFrame(),
+	}
+	return nil
+}
+
+type SwitchStackFrameIn struct {
+	StackFrame int `json:"stack_frame"`
+}
+type SwitchStackFrameOut StackFrameOut
+
+func (h *RPCHandler) SwitchStackFrame(req *SwitchStackFrameIn, resp *SwitchStackFrameOut) error {
+	if err := h.server.inventory.stack.SwitchFrame(req.StackFrame); err != nil {
+		return err
+	}
+	*resp = SwitchStackFrameOut{
 		StackTrace:   h.server.inventory.stack.Trace(),
 		CurrentFrame: h.server.inventory.stack.CurrentFrame(),
 	}

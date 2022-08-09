@@ -4,8 +4,8 @@ command! DlvContinue  call s:run_command('Continue', 'continue execution')
 command! DlvNext      call s:run_command('Next', 'go to the next instruction')
 command! DlvStep      call s:run_command('Step', 'step one instruction')
 command! DlvStepout   call s:run_command('Stepout', 'step out')
-command! DlvUp        call s:switch_stack_frame('Up', 'move one stack frame up')
-command! DlvDown      call s:switch_stack_frame('Down', 'move one stack frame down')
+command! DlvUp        call s:advance_stack_frame('Up', 'move one stack frame up')
+command! DlvDown      call s:advance_stack_frame('Down', 'move one stack frame down')
 
 let s:repository_root = fnamemodify(expand('<sfile>'), ':h:h')
 let s:proxy_path = s:repository_root .. '/proxy/proxy'
@@ -22,6 +22,17 @@ function! s:create_buffer(subtab_name, session) abort
     let l:buffer = {'number': bufnr(l:buffer_name)}
     call s:setup_subtab_buffer(l:buffer, a:session, a:subtab_name)
     return l:buffer
+endfunction
+
+function! s:create_stack_buffer(session) abort
+    let l:buffer = s:create_buffer('stack', a:session)
+    call s:setup_stack_buffer_mappings(l:buffer.number)
+    return l:buffer
+endfunction
+
+function! s:setup_stack_buffer_mappings(buffer) abort
+    let l:switch_stack_frame_function_name = expand('<SID>') .. 'switch_stack_frame'
+    execute printf('nnoremap <buffer> <Cr> :call %s(getcurpos()[1]-1)<Cr>', l:switch_stack_frame_function_name)
 endfunction
 
 function! s:create_terminal_buffer(subtab_name, command_factory, session) abort
@@ -42,7 +53,7 @@ let s:subtabs = {
 \     },
 \     'stack': {
 \         'index': 1,
-\         'create_buffer': function(funcref(expand('<SID>') .. 'create_buffer'), ['stack']),
+\         'create_buffer': function(funcref(expand('<SID>') .. 'create_stack_buffer'), []),
 \     },
 \     'console': {
 \         'index': 2,
@@ -98,7 +109,7 @@ function s:run_command(command_name, command_description) abort
     call ch_sendexpr(l:session.proxy_job, [a:command_name, {}], l:options)
 endfunction
 
-function! s:switch_stack_frame(command_name, command_description) abort
+function! s:advance_stack_frame(command_name, command_description) abort
     let l:session = g:dlvim.current_session
     if type(l:session) == type(v:null)
         call s:print_error( 'No debugging session is currently in progress')
@@ -108,6 +119,22 @@ function! s:switch_stack_frame(command_name, command_description) abort
     let l:response = ch_evalexpr(l:session.proxy_job, [a:command_name, {}])
     if has_key(l:response, 'Error')
         call s:print_error(printf('cannot %s: %s', a:command_description, l:response.Error))
+        return
+    endif
+
+    call s:update_stack_buffer(l:session, l:response.stack_trace, l:response.current_stack_frame)
+endfunction
+
+function! s:switch_stack_frame(frame) abort
+    let l:session = g:dlvim.current_session
+    if type(l:session) == type(v:null)
+        call s:print_error('No debugging session is currently in progress')
+        return
+    endif
+
+    let l:response = ch_evalexpr(l:session.proxy_job, ['SwitchStackFrame', {'stack_frame': a:frame}])
+    if has_key(l:response, 'Error')
+        call s:print_error(printf('cannot switch to the stack frame %d: %s', a:frame, l:response.Error))
         return
     endif
 

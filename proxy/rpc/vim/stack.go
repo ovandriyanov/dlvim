@@ -36,6 +36,14 @@ func (s *Stack) Down() error {
 	return nil
 }
 
+func (s *Stack) SwitchFrame(frame int) error {
+	if frame < 0 || frame >= len(s.stackTrace) {
+		return xerrors.Errorf("frame is out of bounds [0, %d]", len(s.stackTrace))
+	}
+	s.currentFrame = frame
+	return nil
+}
+
 func (s *Stack) Trace() []StackFrame {
 	return s.stackTrace
 }
