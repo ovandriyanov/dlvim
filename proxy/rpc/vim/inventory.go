@@ -16,6 +16,7 @@ type inventory struct {
 	upstreamProcess *upstream.Upstream
 	upstreamClient  commonrpc.Client
 	proxyServer     *proxy.Server
+	stack           *Stack
 }
 
 func (i *inventory) Stop() {
@@ -52,9 +53,12 @@ func NewInventory(ctx context.Context, upstreamCommand upstream.Command, events 
 		upstreamClient = commonrpc.NewLoggingClient("dlv", upstreamClient)
 	}
 
+	stack := NewStack()
+
 	return &inventory{
 		upstreamProcess: upstreamProcess,
 		upstreamClient:  upstreamClient,
 		proxyServer:     proxyServer,
+		stack:           stack,
 	}, nil
 }

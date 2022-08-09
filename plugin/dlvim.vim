@@ -4,12 +4,16 @@ command! DlvContinue  call s:run_command('Continue', 'continue execution')
 command! DlvNext      call s:run_command('Next', 'go to the next instruction')
 command! DlvStep      call s:run_command('Step', 'step one instruction')
 command! DlvStepout   call s:run_command('Stepout', 'step out')
+command! DlvUp        call s:switch_stack_frame('Up', 'move one stack frame up')
+command! DlvDown      call s:switch_stack_frame('Down', 'move one stack frame down')
 
 let s:repository_root = fnamemodify(expand('<sfile>'), ':h:h')
 let s:proxy_path = s:repository_root .. '/proxy/proxy'
 
 highlight CurrentInstruction ctermbg=lightblue
+highlight CurrentStackFrame ctermbg=lightgreen
 sign define DlvimCurrentInstruction linehl=CurrentInstruction
+sign define DlvimCurrentStackFrame linehl=CurrentStackFrame
 sign define DlvimBreakpoint text=●
 
 function! s:create_buffer(subtab_name, session) abort
@@ -94,13 +98,29 @@ function s:run_command(command_name, command_description) abort
     call ch_sendexpr(l:session.proxy_job, [a:command_name, {}], l:options)
 endfunction
 
+function! s:switch_stack_frame(command_name, command_description) abort
+    let l:session = g:dlvim.current_session
+    if type(l:session) == type(v:null)
+        call s:print_error( 'No debugging session is currently in progress')
+        return
+    endif
+
+    let l:response = ch_evalexpr(l:session.proxy_job, [a:command_name, {}])
+    if has_key(l:response, 'Error')
+        call s:print_error(printf('cannot %s: %s', a:command_description, l:response.Error))
+        return
+    endif
+
+    call s:update_stack_buffer(l:session, l:response.stack_trace, l:response.current_stack_frame)
+endfunction
+
 function! s:on_run_command_response(session, command_description, channel, response) abort
     if has_key(a:response, 'Error')
         call s:print_error(printf('cannot %s: %s', a:command_description, a:response.Error))
     endif
 
     if type(a:response.stack_trace) != type(v:null)
-        call s:update_stack_buffer(a:session, a:response.stack_trace)
+        call s:update_stack_buffer(a:session, a:response.stack_trace, 0)
     endif
     call s:update_state(a:session, a:response.state)
 endfunction
@@ -157,12 +177,17 @@ function! s:clear_current_instruction_sign(session) abort
     call sign_unplace(a:session.current_instruction_sign_group)
 endfunction
 
+function! s:clear_current_stack_frame_sign(session) abort
+    call sign_unplace(a:session.current_stack_frame_sign_group)
+endfunction
+
 function! s:clear_stack_buffer(session) abort
     let l:stack_buffer = a:session.buffers.stack.number
     call deletebufline(l:stack_buffer, 1, '$')
+    call s:clear_current_stack_frame_sign(a:session)
 endfunction
 
-function! s:update_stack_buffer(session, stack_trace) abort
+function! s:update_stack_buffer(session, stack_trace, current_stack_frame) abort
     let l:stack_windows_cursor_positions = s:save_cursor_positions('stack')
 
     let l:stack_buffer = a:session.buffers.stack.number
@@ -173,6 +198,7 @@ function! s:update_stack_buffer(session, stack_trace) abort
         let l:line += 1
     endfor
     call deletebufline(l:stack_buffer, '$') " Delete the last line
+    call s:set_current_stack_frame_sign(a:session, a:current_stack_frame)
 
     call s:restore_cursor_positions(l:stack_windows_cursor_positions)
 endfunction
@@ -221,6 +247,15 @@ endfunction
 function! s:set_current_instruction_sign(session, location) abort
     let l:arbitrary_id = 1 " we only have one current instruction at a time, so we pick an arbitrary id
     let l:place_result = sign_place(l:arbitrary_id, a:session.current_instruction_sign_group, 'DlvimCurrentInstruction', a:location.file, {'lnum': a:location.line})
+    if l:place_result == -1
+        call s:print_error('cannot set current instruction sign at ' json_encode(a:location))
+    endif
+endfunction
+
+function! s:set_current_stack_frame_sign(session, current_stack_frame) abort
+    let l:arbitrary_id = 1 " we only have one current stack frame at a time, so we pick an arbitrary id
+    let l:line_number = a:current_stack_frame + 1 " add 1 since lines are numbered from 1 and stack frames are numbered from 0
+    let l:place_result = sign_place(l:arbitrary_id, a:session.current_stack_frame_sign_group, 'DlvimCurrentStackFrame', a:session.buffers.stack.number, {'lnum': l:line_number})
     if l:place_result == -1
         call s:print_error('cannot set current instruction sign at ' json_encode(a:location))
     endif
@@ -470,12 +505,14 @@ function! s:create_session(dlv_argv) abort
     \   'breakpoints':                      [],
     \   'breakpoint_sign_group':            '',
     \   'current_instruction_sign_group':   '',
+    \   'current_stack_frame_sign_group':   '',
     \ }
 
     let [l:proxy_job, l:proxy_listen_address] = s:create_proxy_job(l:session, a:dlv_argv, l:proxy_log_file)
 
     let l:session.breakpoint_sign_group = 'DlvimBreakpoints' .. l:session.id
     let l:session.current_instruction_sign_group = 'DlvimCurrentInstruction' .. l:session.id
+    let l:session.current_stack_frame_sign_group = 'DlvimCurrentStackFrame' .. l:session.id
     let l:session.proxy_job = l:proxy_job
     let l:session.proxy_listen_address = l:proxy_listen_address
     let l:session.buffers = s:create_buffers(l:session)
@@ -550,3 +587,5 @@ nnoremap <C-^>ac<C-^>c :DlvContinue<Cr>
 nnoremap <C-^>ac<C-^>n :DlvNext<Cr>
 nnoremap <C-^>ac<C-^>s :DlvStep<Cr>
 nnoremap <C-^>ac<C-^>o :DlvStepout<Cr>
+nnoremap <C-^>ac<C-^>j :DlvUp<Cr>
+nnoremap <C-^>ac<C-^>k :DlvDown<Cr>

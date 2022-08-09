@@ -225,6 +225,10 @@ type ContinueIn struct{}
 type ContinueOut CommandOut
 
 func (h *RPCHandler) command(command string, response *CommandOut) error {
+	if !h.server.inventory.stack.IsTopmostFrame() {
+		return xerrors.New("not on the topmost frame")
+	}
+
 	upstreamClient := h.server.UpstreamClient()
 	if upstreamClient == nil {
 		return xerrors.New("not initialized")
@@ -247,6 +251,7 @@ func (h *RPCHandler) command(command string, response *CommandOut) error {
 	for _, location := range stackTraceResponse.Locations {
 		response.StackTrace = append(response.StackTrace, StackFrame{File: location.File, Line: location.Line})
 	}
+	h.server.inventory.stack.SetStackTrace(response.StackTrace)
 	return nil
 }
 
@@ -273,6 +278,40 @@ type StepoutOut CommandOut
 
 func (h *RPCHandler) Stepout(req *StepoutIn, resp *StepoutOut) error {
 	return h.command(dlvapi.StepOut, (*CommandOut)(resp))
+}
+
+type UpIn struct{}
+type UpOut struct {
+	StackTrace   []StackFrame `json:"stack_trace"`
+	CurrentFrame int          `json:"current_stack_frame"`
+}
+
+func (h *RPCHandler) Up(req *UpIn, resp *UpOut) error {
+	if err := h.server.inventory.stack.Up(); err != nil {
+		return err
+	}
+	*resp = UpOut{
+		StackTrace:   h.server.inventory.stack.Trace(),
+		CurrentFrame: h.server.inventory.stack.CurrentFrame(),
+	}
+	return nil
+}
+
+type DownIn struct{}
+type DownOut struct {
+	StackTrace   []StackFrame `json:"stack_trace"`
+	CurrentFrame int          `json:"current_stack_frame"`
+}
+
+func (h *RPCHandler) Down(req *DownIn, resp *DownOut) error {
+	if err := h.server.inventory.stack.Down(); err != nil {
+		return err
+	}
+	*resp = DownOut{
+		StackTrace:   h.server.inventory.stack.Trace(),
+		CurrentFrame: h.server.inventory.stack.CurrentFrame(),
+	}
+	return nil
 }
 
 func NewRPCHandler(server *Server, ctx context.Context) *RPCHandler {
