@@ -123,22 +123,28 @@ function! s:advance_stack_frame(command_name, command_description) abort
     endif
 
     call s:update_stack_buffer(l:session, l:response.stack_trace, l:response.current_stack_frame)
+    call s:follow_location_if_necessary(l:response.stack_trace[l:response.current_stack_frame])
+    call s:clear_current_instruction_sign(l:session)
+    call s:set_current_instruction_sign(l:session, l:response.stack_trace[l:response.current_stack_frame])
 endfunction
 
-function! s:switch_stack_frame(frame) abort
+function! s:switch_stack_frame(frame_index) abort
     let l:session = g:dlvim.current_session
     if type(l:session) == type(v:null)
         call s:print_error('No debugging session is currently in progress')
         return
     endif
 
-    let l:response = ch_evalexpr(l:session.proxy_job, ['SwitchStackFrame', {'stack_frame': a:frame}])
+    let l:response = ch_evalexpr(l:session.proxy_job, ['SwitchStackFrame', {'stack_frame': a:frame_index}])
     if has_key(l:response, 'Error')
-        call s:print_error(printf('cannot switch to the stack frame %d: %s', a:frame, l:response.Error))
+        call s:print_error(printf('cannot switch to the stack frame %d: %s', a:frame_index, l:response.Error))
         return
     endif
 
     call s:update_stack_buffer(l:session, l:response.stack_trace, l:response.current_stack_frame)
+    call s:follow_location_if_necessary(l:response.stack_trace[l:response.current_stack_frame])
+    call s:clear_current_instruction_sign(l:session)
+    call s:set_current_instruction_sign(l:session, l:response.stack_trace[l:response.current_stack_frame])
 endfunction
 
 function! s:on_run_command_response(session, command_description, channel, response) abort
