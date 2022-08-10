@@ -129,6 +129,58 @@ func (h *LoggingRPCHandler) Stepout(request *StepoutIn, response *StepoutOut) er
 	return nil
 }
 
+func (h *LoggingRPCHandler) Up(request *UpIn, response *UpOut) error {
+	marshaledRequest, _ := json.Marshal(request)
+	log.Printf("%s: <-- Up %s\n", h.serverName, string(marshaledRequest))
+	err := h.wrappedHandler.Up(request, response)
+	if err != nil {
+		log.Printf("%s: --> Up error %v\n", h.serverName, err)
+		return err
+	}
+	marshaledResponse, _ := json.Marshal(response)
+	log.Printf("%s: --> Up %s\n", h.serverName, string(marshaledResponse))
+	return nil
+}
+
+func (h *LoggingRPCHandler) Down(request *DownIn, response *DownOut) error {
+	marshaledRequest, _ := json.Marshal(request)
+	log.Printf("%s: <-- Down %s\n", h.serverName, string(marshaledRequest))
+	err := h.wrappedHandler.Down(request, response)
+	if err != nil {
+		log.Printf("%s: --> Down error %v\n", h.serverName, err)
+		return err
+	}
+	marshaledResponse, _ := json.Marshal(response)
+	log.Printf("%s: --> Down %s\n", h.serverName, string(marshaledResponse))
+	return nil
+}
+
+func (h *LoggingRPCHandler) SwitchStackFrame(request *SwitchStackFrameIn, response *SwitchStackFrameOut) error {
+	marshaledRequest, _ := json.Marshal(request)
+	log.Printf("%s: <-- SwitchStackFrame %s\n", h.serverName, string(marshaledRequest))
+	err := h.wrappedHandler.SwitchStackFrame(request, response)
+	if err != nil {
+		log.Printf("%s: --> SwitchStackFrame error %v\n", h.serverName, err)
+		return err
+	}
+	marshaledResponse, _ := json.Marshal(response)
+	log.Printf("%s: --> SwitchStackFrame %s\n", h.serverName, string(marshaledResponse))
+	return nil
+}
+
+func (h *LoggingRPCHandler) Evaluate(request *EvaluateIn, response *EvaluateOut) error {
+	marshaledRequest, _ := json.Marshal(request)
+	log.Printf("%s: <-- Evaluate %s\n", h.serverName, string(marshaledRequest))
+	err := h.wrappedHandler.Evaluate(request, response)
+	if err != nil {
+		log.Printf("%s: --> Evaluate error %v\n", h.serverName, err)
+		return err
+	}
+	marshaledResponse, _ := json.Marshal(response)
+	log.Printf("%s: --> Evaluate %s\n", h.serverName, string(marshaledResponse))
+	return nil
+}
+
 func NewLoggingRPCHandler(wrappedHandler *RPCHandler, serverName string) *LoggingRPCHandler {
 	return &LoggingRPCHandler{
 		serverName: serverName,

@@ -6,6 +6,7 @@ command! DlvStep      call s:run_command('Step', 'step one instruction')
 command! DlvStepout   call s:run_command('Stepout', 'step out')
 command! DlvUp        call s:advance_stack_frame('Up', 'move one stack frame up')
 command! DlvDown      call s:advance_stack_frame('Down', 'move one stack frame down')
+command! -nargs=? DlvEval echo s:evaluate_expression_under_cursor()
 
 let s:repository_root = fnamemodify(expand('<sfile>'), ':h:h')
 let s:proxy_path = s:repository_root .. '/proxy/proxy'
@@ -483,7 +484,7 @@ function! s:create_buffers(session)
     return l:buffers
 endfunction
 
-let g:dlvim_debug_rpc = 0
+let g:dlvim_debug_rpc = 1
 
 function! s:create_proxy_job(session, dlv_argv, proxy_log_file) abort
     let l:job_options = {
@@ -616,6 +617,21 @@ function! s:setSessionVariable(sessionID, varname, value) abort
     return settabwinvar(l:tabwin[0], l:tabwin[1], a:varname, a:value)
 endfunction
 
+function! s:evaluate_expression_under_cursor() abort
+    let l:session = g:dlvim.current_session
+    if type(l:session) == type(v:null)
+        call s:print_error('No debugging session is currently in progress')
+        return
+    endif
+
+    let l:response = ch_evalexpr(l:session.proxy_job, ['Evaluate', {'line': getline('.'), 'cursor_position': getcurpos()[2]-1}])
+    if has_key(l:response, 'Error')
+        call s:print_error(l:response.Error)
+        return
+    endif
+    return l:response.result
+endfunction
+
 nnoremap <C-^>ac<C-^>b :DlvBreak<Cr>
 nnoremap <C-^>ac<C-^>c :DlvContinue<Cr>
 nnoremap <C-^>ac<C-^>n :DlvNext<Cr>
@@ -623,3 +639,4 @@ nnoremap <C-^>ac<C-^>s :DlvStep<Cr>
 nnoremap <C-^>ac<C-^>o :DlvStepout<Cr>
 nnoremap <C-^>ac<C-^>j :DlvUp<Cr>
 nnoremap <C-^>ac<C-^>k :DlvDown<Cr>
+nnoremap <C-^>ac<C-^>p :DlvEval<Cr>

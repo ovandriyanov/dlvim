@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"regexp"
 
 	dlvapi "github.com/go-delve/delve/service/api"
 	dlvrpc "github.com/go-delve/delve/service/rpc2"
@@ -326,6 +327,76 @@ func (h *RPCHandler) SwitchStackFrame(req *SwitchStackFrameIn, resp *SwitchStack
 		StackTrace:   h.server.inventory.stack.Trace(),
 		CurrentFrame: h.server.inventory.stack.CurrentFrame(),
 	}
+	return nil
+}
+
+type EvaluateIn struct {
+	Line           string `json:"line"`
+	CursorPosition int    `json:"cursor_position"`
+}
+
+type EvaluateOut struct {
+	Result string `json:"result"`
+}
+
+func parseEvaluateExprRequest(request *EvaluateIn) (string, error) {
+	if request.CursorPosition >= len(request.Line) || request.CursorPosition < 0 {
+		return "", xerrors.Errorf("cursor position is outside range [0, %d)", len(request.Line))
+	}
+	forwardRegexp := regexp.MustCompile(`[^a-zA-Z0-9_]`)
+	backwardRegexp := regexp.MustCompile(`[^a-zA-Z0-9_.]`)
+
+	locations := forwardRegexp.FindStringIndex(request.Line[request.CursorPosition:])
+	end := len(request.Line)
+	if locations != nil {
+		end = locations[0] + request.CursorPosition
+	}
+
+	reversedInput := make([]byte, 0, request.CursorPosition)
+	for i := request.CursorPosition; i >= 0; i-- {
+		reversedInput = append(reversedInput, request.Line[i])
+	}
+	locations = backwardRegexp.FindIndex(reversedInput)
+	begin := 0
+	if locations != nil {
+		begin = request.CursorPosition - locations[0] + 1
+	}
+	if begin > request.CursorPosition {
+		begin = request.CursorPosition
+	}
+
+	return request.Line[begin:end], nil
+}
+
+func (h *RPCHandler) Evaluate(req *EvaluateIn, resp *EvaluateOut) error {
+	expr, err := parseEvaluateExprRequest(req)
+	if err != nil {
+		return xerrors.Errorf("cannot parse expression: %w", err)
+	}
+	var upstreamResp dlvrpc.EvalOut
+	err = h.server.inventory.upstreamClient.Call(
+		dlv.FQMN("Eval"),
+		dlvrpc.EvalIn{
+			Scope: dlvapi.EvalScope{
+				GoroutineID:  -1,
+				Frame:        h.server.inventory.stack.CurrentFrame(),
+				DeferredCall: 0,
+			},
+			Expr: expr,
+			Cfg: &dlvapi.LoadConfig{
+				FollowPointers:     true,
+				MaxVariableRecurse: 1,
+				MaxStringLen:       10_000,
+				MaxArrayValues:     100,
+				MaxStructFields:    -1,
+			},
+		},
+		&upstreamResp,
+	)
+	if err != nil {
+		return err
+	}
+	resp.Result = upstreamResp.Variable.Value
 	return nil
 }
 
