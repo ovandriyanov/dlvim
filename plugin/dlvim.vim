@@ -645,6 +645,7 @@ function! s:get_selection() abort
     normal! gv"zy
     let l:expr = getreg('z')
     call setreg('z', l:saved_zreg)
+    redraw
     return l:expr
 endfunction
 
