@@ -658,7 +658,15 @@ function! s:evaluate_expression(range, expr = '') abort
         return
     endif
 
-    echo l:response.result
+    call s:set_buffer_contents(l:session, 'objects', l:response.pretty)
+    if get(l:response, 'one_line', '') ==# ''
+        echo 'See objects subtab for the evaluation result'
+    else
+        echo l:response.one_line
+    endif
+endfunction
+
+function! s:update_objects_buffer(session) abort
 endfunction
 
 function! s:get_selection() abort

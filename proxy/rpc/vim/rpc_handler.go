@@ -339,7 +339,8 @@ type EvaluateIn struct {
 }
 
 type EvaluateOut struct {
-	Result string `json:"result"`
+	OneLine string   `json:"one_line"`
+	Pretty  []string `json:"pretty"`
 }
 
 func parseEvaluateExprRequest(request *EvaluateIn) (string, error) {
@@ -406,7 +407,10 @@ func (h *RPCHandler) Evaluate(req *EvaluateIn, resp *EvaluateOut) error {
 	if err != nil {
 		return err
 	}
-	resp.Result = upstreamResp.Variable.Value
+	*resp = EvaluateOut{
+		OneLine: upstreamResp.Variable.Value,
+		Pretty:  []string{upstreamResp.Variable.Value},
+	}
 	return nil
 }
 
