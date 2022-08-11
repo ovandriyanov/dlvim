@@ -331,8 +331,11 @@ func (h *RPCHandler) SwitchStackFrame(req *SwitchStackFrameIn, resp *SwitchStack
 }
 
 type EvaluateIn struct {
+	// Specify either line + cursor_position or expression
 	Line           string `json:"line"`
 	CursorPosition int    `json:"cursor_position"`
+
+	Expression string `json:"expression"`
 }
 
 type EvaluateOut struct {
@@ -369,12 +372,19 @@ func parseEvaluateExprRequest(request *EvaluateIn) (string, error) {
 }
 
 func (h *RPCHandler) Evaluate(req *EvaluateIn, resp *EvaluateOut) error {
-	expr, err := parseEvaluateExprRequest(req)
-	if err != nil {
-		return xerrors.Errorf("cannot parse expression: %w", err)
+	var expr string
+	if req.Expression != "" {
+		expr = req.Expression
+	} else {
+		var err error
+		expr, err = parseEvaluateExprRequest(req)
+		if err != nil {
+			return xerrors.Errorf("cannot parse expression: %w", err)
+		}
 	}
+
 	var upstreamResp dlvrpc.EvalOut
-	err = h.server.inventory.upstreamClient.Call(
+	err := h.server.inventory.upstreamClient.Call(
 		dlv.FQMN("Eval"),
 		dlvrpc.EvalIn{
 			Scope: dlvapi.EvalScope{
