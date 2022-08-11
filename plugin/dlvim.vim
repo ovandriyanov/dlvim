@@ -36,6 +36,12 @@ function! s:setup_stack_buffer_mappings(buffer) abort
     execute printf('nnoremap <buffer> <Cr> :call %s(getcurpos()[1]-1)<Cr>', l:switch_stack_frame_function_name)
 endfunction
 
+function! s:create_objects_buffer(session) abort
+    let l:buffer = s:create_buffer('objects', a:session)
+    call setbufvar(l:buffer.number, '&filetype', 'json')
+    return l:buffer
+endfunction
+
 function! s:create_terminal_buffer(subtab_name, command_factory, session) abort
     execute 'terminal'
     \  '++curwin'
@@ -56,15 +62,19 @@ let s:subtabs = {
 \         'index': 1,
 \         'create_buffer': function(funcref(expand('<SID>') .. 'create_stack_buffer'), []),
 \     },
-\     'console': {
+\     'objects': {
 \         'index': 2,
+\         'create_buffer': function(funcref(expand('<SID>') .. 'create_objects_buffer'), []),
+\     },
+\     'console': {
+\         'index': 3,
 \         'create_buffer': function(funcref(expand('<SID>') .. 'create_terminal_buffer'), [
 \             'console',
 \             {session -> 'dlv connect ' .. session.proxy_listen_address},
 \         ]),
 \     },
 \     'log': {
-\         'index': 3,
+\         'index': 4,
 \         'create_buffer': function(funcref(expand('<SID>') .. 'create_terminal_buffer'), [
 \             'log',
 \             {session -> printf('tail -n +1 -f %s', session.proxy_log_file)},
@@ -343,6 +353,7 @@ let s:event_handlers = {
 let s:subtab_names = [
 \     'breakpoints',
 \     'stack',
+\     'objects',
 \     'console',
 \     'log',
 \ ]
