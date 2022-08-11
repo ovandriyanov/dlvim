@@ -8,6 +8,7 @@ import (
 	"log"
 	"reflect"
 	"regexp"
+	"strings"
 
 	dlvapi "github.com/go-delve/delve/service/api"
 	dlvrpc "github.com/go-delve/delve/service/rpc2"
@@ -409,9 +410,36 @@ func (h *RPCHandler) Evaluate(req *EvaluateIn, resp *EvaluateOut) error {
 	}
 	*resp = EvaluateOut{
 		OneLine: upstreamResp.Variable.Value,
-		Pretty:  []string{upstreamResp.Variable.Value},
+		Pretty:  formatVariable(upstreamResp.Variable),
 	}
 	return nil
+}
+
+func formatVariable(variable *dlvapi.Variable) []string {
+	object := toObject(variable)
+	marshaled, _ := json.MarshalIndent(object, "", "  ")
+	return strings.Split(string(marshaled), "\n")
+}
+
+// Converts a variable to an object ready to be marshaled into a JSON
+func toObject(variable *dlvapi.Variable) (object interface{}) {
+	if len(variable.Children) == 0 {
+		return variable.Value
+	}
+	if strings.HasPrefix(variable.Type, "[]") {
+		list := make([]interface{}, 0, len(variable.Children))
+		for _, child := range variable.Children {
+			list = append(list, toObject(&child))
+		}
+		object = list
+	} else {
+		dict := make(map[string]interface{})
+		for _, child := range variable.Children {
+			dict[child.Name] = toObject(&child)
+		}
+		object = dict
+	}
+	return object
 }
 
 func NewRPCHandler(server *Server, ctx context.Context) *RPCHandler {
