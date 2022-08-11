@@ -196,7 +196,15 @@ function! s:update_breakpoints(session) abort
     let a:session.breakpoints = l:response.Breakpoints
 
     call s:update_breakpoint_signs(a:session)
-    call s:update_breakpoints_buffer(a:session)
+    call s:set_buffer_contents(a:session, 'breakpoints', s:jsonify_list(a:session.breakpoints))
+endfunction
+
+function! s:jsonify_list(breakpoints_list) abort
+    let l:result = []
+    for l:breakpoint in a:breakpoints_list
+        let l:result += [json_encode(l:breakpoint)]
+    endfor
+    return result
 endfunction
 
 function! s:update_state(session, state) abort
@@ -329,19 +337,20 @@ function! s:restore_cursor_positions(window_cursor_positions) abort
     call win_gotoid(l:old_window_id)
 endfunction
 
-function! s:update_breakpoints_buffer(session) abort
-    let l:breakpoint_windows_cursor_positions = s:save_cursor_positions('breakpoints')
+" buffer_content is a list of strings representing lines of the buffer to be set
+function! s:set_buffer_contents(session, buffer_name, buffer_content) abort
+    let l:cursor_positions = s:save_cursor_positions(a:buffer_name)
 
-    let l:breakpoints_buffer = a:session.buffers.breakpoints.number
-    call deletebufline(l:breakpoints_buffer, 1, '$') " Delete everything
-    let l:line = 0
-    for l:breakpoint in a:session.breakpoints
-        call appendbufline(l:breakpoints_buffer, l:line, json_encode(l:breakpoint))
-        let l:line += 1
+    let l:buffer = a:session.buffers[a:buffer_name].number
+    call deletebufline(l:buffer, 1, '$') " Delete everything
+    let l:line_number = 0
+    for l:line in a:buffer_content
+        call appendbufline(l:buffer, l:line_number, l:line)
+        let l:line_number += 1
     endfor
-    call deletebufline(l:breakpoints_buffer, '$') " Delete the last line
+    call deletebufline(l:buffer, '$') " Delete the last line
 
-    call s:restore_cursor_positions(l:breakpoint_windows_cursor_positions)
+    call s:restore_cursor_positions(l:cursor_positions)
 endfunction
 
 let s:event_handlers = {
