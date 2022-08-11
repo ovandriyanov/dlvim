@@ -241,19 +241,8 @@ function! s:clear_stack_buffer(session) abort
 endfunction
 
 function! s:update_stack_buffer(session, stack_trace, current_stack_frame) abort
-    let l:stack_windows_cursor_positions = s:save_cursor_positions('stack')
-
-    let l:stack_buffer = a:session.buffers.stack.number
-    call deletebufline(l:stack_buffer, 1, '$') " Delete everything
-    let l:line = 0
-    for l:stack_frame in a:stack_trace
-        call appendbufline(l:stack_buffer, l:line, json_encode(l:stack_frame))
-        let l:line += 1
-    endfor
-    call deletebufline(l:stack_buffer, '$') " Delete the last line
+    call s:set_buffer_contents(a:session, 'stack', s:jsonify_list(a:stack_trace))
     call s:set_current_stack_frame_sign(a:session, a:current_stack_frame)
-
-    call s:restore_cursor_positions(l:stack_windows_cursor_positions)
 endfunction
 
 function! s:follow_location_if_necessary(location) abort
