@@ -6,7 +6,7 @@ command! DlvStep      call s:run_command('Step', 'step one instruction')
 command! DlvStepout   call s:run_command('Stepout', 'step out')
 command! DlvUp        call s:advance_stack_frame('Up', 'move one stack frame up')
 command! DlvDown      call s:advance_stack_frame('Down', 'move one stack frame down')
-command! -range=0 -nargs=? DlvEval echo s:evaluate_expression(<range>, <q-args>)
+command! -range=0 -nargs=? DlvEval call s:evaluate_expression(<range>, <q-args>)
 
 let s:repository_root = fnamemodify(expand('<sfile>'), ':h:h')
 let s:proxy_path = s:repository_root .. '/proxy/proxy'
@@ -648,7 +648,8 @@ function! s:evaluate_expression(range, expr = '') abort
         call s:print_error(l:response.Error)
         return
     endif
-    return l:response.result
+
+    echo l:response.result
 endfunction
 
 function! s:get_selection() abort
