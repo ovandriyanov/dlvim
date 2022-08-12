@@ -1,12 +1,11 @@
-package command
+package upstream
 
 import (
-	"github.com/ovandriyanov/dlvim/proxy/upstream"
 	"golang.org/x/xerrors"
 )
 
 func init() {
-	upstream.AddCommandParser("debug", func(argv []string) (upstream.Command, error) {
+	AddStartOptionParser("debug", func(argv []string) (StartOption, error) {
 		if len(argv) != 1 {
 			return nil, xerrors.Errorf("exactly one argument expected")
 		}
@@ -17,6 +16,8 @@ func init() {
 type Debug struct {
 	PackagePath string
 }
+
+func (d *Debug) isStartOption() {}
 
 func (d *Debug) Argv() []string {
 	return []string{

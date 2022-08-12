@@ -60,7 +60,7 @@ func readPipe(pipeName string, pipe *bufio.Scanner) {
 	}
 }
 
-func constructArgv(command Command) []string {
+func constructArgv(command StartDlvProcess) []string {
 	var argv []string
 	argv = append(argv, command.Argv()...)
 	argv = append(argv, "--listen")
@@ -184,7 +184,7 @@ func handeInitializationFailure(initializationError error, cmd *exec.Cmd) (error
 	return initializationError.Error()
 }
 
-func New(ctx context.Context, command Command) (*Upstream, error) {
+func New(ctx context.Context, command StartDlvProcess) (*Upstream, error) {
 	cmd := exec.Command("dlv", constructArgv(command)...)
 
 	stdout, stderr, err := createPipes(cmd)

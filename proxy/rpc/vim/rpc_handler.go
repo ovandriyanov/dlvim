@@ -17,7 +17,6 @@ import (
 	dlvrpc "github.com/go-delve/delve/service/rpc2"
 	"github.com/ovandriyanov/dlvim/proxy/rpc/dlv"
 	"github.com/ovandriyanov/dlvim/proxy/upstream"
-	_ "github.com/ovandriyanov/dlvim/proxy/upstream/command"
 	"github.com/ovandriyanov/dlvim/proxy/vimevent"
 	"golang.org/x/xerrors"
 )
@@ -74,7 +73,7 @@ func (h *RPCHandler) Initialize(req map[string]interface{}, resp *map[string]int
 		stringArgv = append(stringArgv, strArg)
 	}
 
-	command, err := upstream.NewCommand(stringArgv)
+	command, err := upstream.NewStartOption(stringArgv)
 	if err != nil {
 		return xerrors.Errorf("'dlv_argv' is invalid: %w", err)
 	}

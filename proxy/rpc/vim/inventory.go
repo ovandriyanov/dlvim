@@ -22,29 +22,46 @@ type inventory struct {
 func (i *inventory) Stop() {
 	i.proxyServer.Stop()
 	i.upstreamClient.Close()
-	i.upstreamProcess.Stop()
+	if i.upstreamProcess != nil {
+		i.upstreamProcess.Stop()
+	}
 }
 
 func (i *inventory) ProxyListenAddress() net.Addr {
 	return i.proxyServer.ListenAddress()
 }
 
-func NewInventory(ctx context.Context, upstreamCommand upstream.Command, events chan<- vimevent.Event, debugRPC bool) (*inventory, error) {
-	upstreamProcess, err := upstream.New(ctx, upstreamCommand)
-	if err != nil {
-		return nil, xerrors.Errorf("cannot create upstream: %w", err)
+func NewInventory(ctx context.Context, upstreamStartOption upstream.StartOption, events chan<- vimevent.Event, debugRPC bool) (*inventory, error) {
+	var upstreamProcess *upstream.Upstream
+	var err error
+	var listenAddress string
+	switch startOption := upstreamStartOption.(type) {
+	case upstream.StartDlvProcess:
+		upstreamProcess, err = upstream.New(ctx, startOption)
+		if err != nil {
+			return nil, xerrors.Errorf("cannot create upstream: %w", err)
+		}
+		listenAddress = upstream.ListenAddress
+	case *upstream.Connect:
+		listenAddress = startOption.Address()
 	}
 
-	upstreamConnection, err := net.Dial("tcp", upstream.ListenAddress)
-	if err != nil {
-		upstreamProcess.Stop()
-		return nil, xerrors.Errorf("cannot dial upstream at %s: %w", upstream.ListenAddress, err)
+	stopUpstream := func() {
+		if upstreamProcess != nil {
+			upstreamProcess.Stop()
+		}
 	}
 
-	proxyServer, err := proxy.NewServer(upstream.ListenAddress, events, debugRPC)
+	upstreamConnection, err := net.Dial("tcp", listenAddress)
+	if err != nil {
+		stopUpstream()
+		return nil, xerrors.Errorf("cannot dial upstream at %s: %w", listenAddress, err)
+	}
+
+	proxyServer, err := proxy.NewServer(listenAddress, events, debugRPC)
 	if err != nil {
 		_ = upstreamConnection.Close()
-		upstreamProcess.Stop()
+		stopUpstream()
 		return nil, xerrors.Errorf("cannot create proxy server: %w", err)
 	}
 

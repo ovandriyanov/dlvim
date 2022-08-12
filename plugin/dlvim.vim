@@ -573,6 +573,7 @@ function! s:create_proxy_job(session, dlv_argv, proxy_log_file) abort
         throw printf('proxy initialization failed: %s', l:init_response.Error)
     endif
     let l:proxy_listen_address = l:init_response.proxy_listen_address
+    echom 'JOB CREATED'
 
     call ch_sendexpr(l:job, ['GetNextEvent', {}], {'callback': function(funcref(expand('<SID>') .. 'on_next_event'), [a:session])})
     return [l:job, l:proxy_listen_address]

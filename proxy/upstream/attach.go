@@ -1,14 +1,13 @@
-package command
+package upstream
 
 import (
-	"github.com/ovandriyanov/dlvim/proxy/upstream"
 	"golang.org/x/xerrors"
 
 	"strconv"
 )
 
 func init() {
-	upstream.AddCommandParser("attach", func(argv []string) (upstream.Command, error) {
+	AddStartOptionParser("attach", func(argv []string) (StartOption, error) {
 		if len(argv) != 1 {
 			return nil, xerrors.Errorf("exactly one argument expected")
 		}
@@ -23,6 +22,8 @@ func init() {
 type Attach struct {
 	Pid int
 }
+
+func (a *Attach) isStartOption() {}
 
 func (d *Attach) Argv() []string {
 	return []string{"attach", strconv.Itoa(d.Pid)}

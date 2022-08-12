@@ -7,37 +7,46 @@ import (
 )
 
 type (
-	Command       interface{ Argv() []string }
-	CommandParser func(argv []string) (Command, error)
-	CommandName   string
+	StartOption interface {
+		isStartOption()
+	}
+
+	// Run the dlv as a separate process
+	StartDlvProcess interface {
+		isStartOption()
+		Argv() []string
+	}
+
+	StartOptionParser func(argv []string) (StartOption, error)
+	StartOptionName   string
 )
 
 var (
-	commandParsers = map[string]CommandParser{}
+	startOptionParsers = map[string]StartOptionParser{}
 )
 
-func AddCommandParser(name string, parser CommandParser) {
-	if _, ok := commandParsers[name]; ok {
+func AddStartOptionParser(name string, parser StartOptionParser) {
+	if _, ok := startOptionParsers[name]; ok {
 		panic(fmt.Sprintf("Command parser for name '%s' has already been registered", name))
 	}
-	commandParsers[name] = parser
+	startOptionParsers[name] = parser
 }
 
-func NewCommand(argv []string) (Command, error) {
+func NewStartOption(argv []string) (StartOption, error) {
 	if len(argv) < 1 {
 		return nil, xerrors.Errorf("at least one argument expected")
 	}
-	commandName := argv[0]
+	optionName := argv[0]
 
-	parser, ok := commandParsers[commandName]
+	parser, ok := startOptionParsers[optionName]
 	if !ok {
-		return nil, xerrors.Errorf("unknown command '%s'", commandName)
+		return nil, xerrors.Errorf("unknown command '%s'", optionName)
 	}
 
-	command, err := parser(argv[1:])
+	startOption, err := parser(argv[1:])
 	if err != nil {
-		return nil, xerrors.Errorf("%s: %w", commandName, err)
+		return nil, xerrors.Errorf("%s: %w", optionName, err)
 	}
 
-	return command, nil
+	return startOption, nil
 }
