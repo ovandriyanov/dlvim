@@ -230,7 +230,7 @@ type ContinueIn struct{}
 type ContinueOut CommandOut
 
 func (h *RPCHandler) command(command string, response *CommandOut, goroutineID int) error {
-	if !h.server.inventory.stack.IsTopmostFrame() {
+	if command != "switchGoroutine" && !h.server.inventory.stack.IsTopmostFrame() {
 		return xerrors.New("not on the topmost frame")
 	}
 
