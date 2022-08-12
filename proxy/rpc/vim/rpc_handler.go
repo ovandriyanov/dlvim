@@ -2,13 +2,16 @@
 package vim
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
+	"text/tabwriter"
 
 	dlvapi "github.com/go-delve/delve/service/api"
 	dlvrpc "github.com/go-delve/delve/service/rpc2"
@@ -226,7 +229,7 @@ type CommandOut struct {
 type ContinueIn struct{}
 type ContinueOut CommandOut
 
-func (h *RPCHandler) command(command string, response *CommandOut) error {
+func (h *RPCHandler) command(command string, response *CommandOut, goroutineID int) error {
 	if !h.server.inventory.stack.IsTopmostFrame() {
 		return xerrors.New("not on the topmost frame")
 	}
@@ -236,7 +239,10 @@ func (h *RPCHandler) command(command string, response *CommandOut) error {
 		return xerrors.New("not initialized")
 	}
 
-	commandRequest := dlvapi.DebuggerCommand{Name: command}
+	commandRequest := dlvapi.DebuggerCommand{
+		Name:        command,
+		GoroutineID: goroutineID,
+	}
 	var commandResponse dlvrpc.CommandOut
 	err := upstreamClient.Call(dlv.FQMN("Command"), &commandRequest, &commandResponse)
 	if err != nil {
@@ -258,28 +264,28 @@ func (h *RPCHandler) command(command string, response *CommandOut) error {
 }
 
 func (h *RPCHandler) Continue(req *ContinueIn, resp *ContinueOut) error {
-	return h.command(dlvapi.Continue, (*CommandOut)(resp))
+	return h.command(dlvapi.Continue, (*CommandOut)(resp), 0)
 }
 
 type NextIn struct{}
 type NextOut CommandOut
 
 func (h *RPCHandler) Next(req *NextIn, resp *NextOut) error {
-	return h.command(dlvapi.Next, (*CommandOut)(resp))
+	return h.command(dlvapi.Next, (*CommandOut)(resp), 0)
 }
 
 type StepIn struct{}
 type StepOut CommandOut
 
 func (h *RPCHandler) Step(req *StepIn, resp *StepOut) error {
-	return h.command(dlvapi.Step, (*CommandOut)(resp))
+	return h.command(dlvapi.Step, (*CommandOut)(resp), 0)
 }
 
 type StepoutIn struct{}
 type StepoutOut CommandOut
 
 func (h *RPCHandler) Stepout(req *StepoutIn, resp *StepoutOut) error {
-	return h.command(dlvapi.StepOut, (*CommandOut)(resp))
+	return h.command(dlvapi.StepOut, (*CommandOut)(resp), 0)
 }
 
 type StackFrameOut struct {
@@ -413,6 +419,63 @@ func (h *RPCHandler) Evaluate(req *EvaluateIn, resp *EvaluateOut) error {
 		Pretty:  formatVariable(upstreamResp.Variable),
 	}
 	return nil
+}
+
+type ListGoroutinesIn struct {
+	CurrentGoroutineID int `json:"current_goroutine_id"`
+}
+
+type ListGoroutinesOut struct {
+	Goroutines            []string `json:"goroutines"`
+	CurrentGoroutineIndex int      `json:"current_goroutine_index"`
+}
+
+func (h *RPCHandler) ListGoroutines(req *ListGoroutinesIn, resp *ListGoroutinesOut) error {
+	var upstreamResp dlvrpc.ListGoroutinesOut
+	if err := h.server.inventory.upstreamClient.Call(dlv.FQMN("ListGoroutines"), &dlvrpc.ListGoroutinesIn{}, &upstreamResp); err != nil {
+		return err
+	}
+	buffer := bytes.NewBuffer(nil)
+	tabWriter := tabwriter.NewWriter(buffer, 0, 1, 1, ' ', 0)
+	currentGoroutineIndex := -1
+	for i, goroutine := range upstreamResp.Goroutines {
+		fmt.Fprintf(
+			tabWriter,
+			"%d\t%s\t%s:%d\n",
+			goroutine.ID,
+			goroutine.CurrentLoc.Function.Name(),
+			goroutine.CurrentLoc.File,
+			goroutine.CurrentLoc.Line,
+		)
+		if goroutine.ID == req.CurrentGoroutineID {
+			currentGoroutineIndex = i
+		}
+	}
+	_ = tabWriter.Flush()
+	lines := strings.Split(buffer.String(), "\n")
+	if len(lines) > 0 {
+		lines = lines[:len(lines)-1] // the last line is always empty
+	}
+	*resp = ListGoroutinesOut{
+		Goroutines:            lines,
+		CurrentGoroutineIndex: currentGoroutineIndex,
+	}
+	return nil
+}
+
+type SwitchGoroutineIn struct {
+	Line string `json:"line"`
+}
+
+type SwitchGoroutineOut struct{}
+
+func (h *RPCHandler) SwitchGoroutine(req *SwitchGoroutineIn, resp *CommandOut) error {
+	goroutineStringID := strings.Split(req.Line, " ")[0]
+	goroutineID, err := strconv.Atoi(goroutineStringID)
+	if err != nil {
+		return xerrors.Errorf("invalid goroutine ID: %q", goroutineStringID)
+	}
+	return h.command("switchGoroutine", resp, goroutineID)
 }
 
 func formatVariable(variable *dlvapi.Variable) []string {

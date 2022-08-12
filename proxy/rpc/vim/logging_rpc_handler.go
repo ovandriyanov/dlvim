@@ -181,6 +181,32 @@ func (h *LoggingRPCHandler) Evaluate(request *EvaluateIn, response *EvaluateOut)
 	return nil
 }
 
+func (h *LoggingRPCHandler) ListGoroutines(request *ListGoroutinesIn, response *ListGoroutinesOut) error {
+	marshaledRequest, _ := json.Marshal(request)
+	log.Printf("%s: <-- ListGoroutines %s\n", h.serverName, string(marshaledRequest))
+	err := h.wrappedHandler.ListGoroutines(request, response)
+	if err != nil {
+		log.Printf("%s: --> ListGoroutines error %v\n", h.serverName, err)
+		return err
+	}
+	marshaledResponse, _ := json.Marshal(response)
+	log.Printf("%s: --> ListGoroutines %s\n", h.serverName, string(marshaledResponse))
+	return nil
+}
+
+func (h *LoggingRPCHandler) SwitchGoroutine(request *SwitchGoroutineIn, response *CommandOut) error {
+	marshaledRequest, _ := json.Marshal(request)
+	log.Printf("%s: <-- SwitchGoroutine %s\n", h.serverName, string(marshaledRequest))
+	err := h.wrappedHandler.SwitchGoroutine(request, response)
+	if err != nil {
+		log.Printf("%s: --> SwitchGoroutine error %v\n", h.serverName, err)
+		return err
+	}
+	marshaledResponse, _ := json.Marshal(response)
+	log.Printf("%s: --> SwitchGoroutine %s\n", h.serverName, string(marshaledResponse))
+	return nil
+}
+
 func NewLoggingRPCHandler(wrappedHandler *RPCHandler, serverName string) *LoggingRPCHandler {
 	return &LoggingRPCHandler{
 		serverName: serverName,

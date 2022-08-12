@@ -1,9 +1,9 @@
 command! -nargs=+           Dlv          call s:start_session([<f-args>])
 command!                    DlvBreak     call s:create_or_delete_breakpoint_on_the_current_line()
-command!                    DlvContinue  call s:run_command('Continue', 'continue execution')
-command!                    DlvNext      call s:run_command('Next', 'go to the next instruction')
-command!                    DlvStep      call s:run_command('Step', 'step one instruction')
-command!                    DlvStepout   call s:run_command('Stepout', 'step out')
+command!                    DlvContinue  call s:run_command('Continue', 'continue execution', {})
+command!                    DlvNext      call s:run_command('Next', 'go to the next instruction', {})
+command!                    DlvStep      call s:run_command('Step', 'step one instruction', {})
+command!                    DlvStepout   call s:run_command('Stepout', 'step out', {})
 command!                    DlvUp        call s:advance_stack_frame('Up', 'move one stack frame up')
 command!                    DlvDown      call s:advance_stack_frame('Down', 'move one stack frame down')
 command! -nargs=? -range=0  DlvEval      call s:evaluate_expression(<range>, <q-args>)
@@ -13,8 +13,10 @@ let s:proxy_path = s:repository_root .. '/proxy/proxy'
 
 highlight CurrentInstruction ctermbg=lightblue
 highlight CurrentStackFrame ctermbg=lightgreen
+highlight CurrentGoroutine ctermbg=lightblue
 sign define DlvimCurrentInstruction linehl=CurrentInstruction
 sign define DlvimCurrentStackFrame linehl=CurrentStackFrame
+sign define DlvimCurrentGoroutine linehl=CurrentGoroutine
 sign define DlvimBreakpoint text=●
 
 function! s:create_buffer(subtab_name, session) abort
@@ -34,6 +36,17 @@ endfunction
 function! s:setup_stack_buffer_mappings(buffer) abort
     let l:switch_stack_frame_function_name = expand('<SID>') .. 'switch_stack_frame'
     execute printf('nnoremap <buffer> <Cr> :call %s(getcurpos()[1]-1)<Cr>', l:switch_stack_frame_function_name)
+endfunction
+
+function! s:create_goroutines_buffer(session) abort
+    let l:buffer = s:create_buffer('goroutines', a:session)
+    call s:setup_goroutines_buffer_mappings(l:buffer.number)
+    return l:buffer
+endfunction
+
+function! s:setup_goroutines_buffer_mappings(buffer) abort
+    let l:switch_goroutine_function_name = expand('<SID>') .. 'switch_to_goroutine_under_cursor'
+    execute printf('nnoremap <buffer> <Cr> :call %s()<Cr>', l:switch_goroutine_function_name)
 endfunction
 
 function! s:create_objects_buffer(session) abort
@@ -62,19 +75,23 @@ let s:subtabs = {
 \         'index': 1,
 \         'create_buffer': function(funcref(expand('<SID>') .. 'create_stack_buffer'), []),
 \     },
-\     'objects': {
+\     'goroutines': {
 \         'index': 2,
+\         'create_buffer': function(funcref(expand('<SID>') .. 'create_goroutines_buffer'), []),
+\     },
+\     'objects': {
+\         'index': 3,
 \         'create_buffer': function(funcref(expand('<SID>') .. 'create_objects_buffer'), []),
 \     },
 \     'console': {
-\         'index': 3,
+\         'index': 4,
 \         'create_buffer': function(funcref(expand('<SID>') .. 'create_terminal_buffer'), [
 \             'console',
 \             {session -> 'dlv connect ' .. session.proxy_listen_address},
 \         ]),
 \     },
 \     'log': {
-\         'index': 4,
+\         'index': 5,
 \         'create_buffer': function(funcref(expand('<SID>') .. 'create_terminal_buffer'), [
 \             'log',
 \             {session -> printf('tail -n +1 -f %s', session.proxy_log_file)},
@@ -107,7 +124,7 @@ function! s:create_or_delete_breakpoint_on_the_current_line() abort
     call s:update_breakpoints(l:session)
 endfunction
 
-function s:run_command(command_name, command_description) abort
+function s:run_command(command_name, command_description, args) abort
     let l:session = g:dlvim.current_session
     if type(l:session) == type(v:null)
         call s:print_error( 'No debugging session is currently in progress')
@@ -117,7 +134,7 @@ function s:run_command(command_name, command_description) abort
     call s:clear_current_instruction_sign(l:session)
     call s:clear_stack_buffer(l:session)
     let l:options = {'callback': function(funcref(expand('<SID>') .. 'on_run_command_response'), [l:session, a:command_description])}
-    call ch_sendexpr(l:session.proxy_job, [a:command_name, {}], l:options)
+    call ch_sendexpr(l:session.proxy_job, [a:command_name, a:args], l:options)
 endfunction
 
 function! s:advance_stack_frame(command_name, command_description) abort
@@ -156,6 +173,17 @@ function! s:switch_stack_frame(frame_index) abort
     call s:follow_location_if_necessary(l:response.stack_trace[l:response.current_stack_frame])
     call s:clear_current_instruction_sign(l:session)
     call s:set_current_instruction_sign(l:session, l:response.stack_trace[l:response.current_stack_frame])
+endfunction
+
+function! s:switch_to_goroutine_under_cursor()
+    let l:session = g:dlvim.current_session
+    if type(l:session) == type(v:null)
+        call s:print_error('No debugging session is currently in progress')
+        return
+    endif
+
+    let l:response = ch_evalexpr(l:session.proxy_job, ['SwitchGoroutine', {'line': getline('.')}])
+    call s:run_command('SwitchGoroutine', 'switch goroutine', {'line': getline('.')})
 endfunction
 
 function! s:on_run_command_response(session, command_description, channel, response) abort
@@ -208,8 +236,23 @@ function! s:jsonify_list(breakpoints_list) abort
 endfunction
 
 function! s:update_state(session, state) abort
-    call s:clear_current_instruction_sign(a:session)
     let l:current_goroutine = get(a:state, 'currentGoroutine', v:null)
+    if type(l:current_goroutine) == type(v:null)
+        let l:current_goroutine_id = -1
+    else
+        let l:current_goroutine_id = l:current_goroutine.id
+    endif
+
+    let l:response = ch_evalexpr(a:session.proxy_job, ['ListGoroutines', {'current_goroutine_id': l:current_goroutine_id}])
+    if has_key(l:response, 'Error')
+        call s:print_error('Cannot list goroutines: ' .. l:response.Error)
+        let l:goroutines = []
+        let l:current_goroutine_index = 0
+    else
+        let l:goroutines = l:response.goroutines
+        let l:current_goroutine_index = l:response.current_goroutine_index
+    endif
+    call s:clear_current_instruction_sign(a:session)
     if a:state.exited
         echom 'Program exited with status ' .. a:state.exitStatus
         return
@@ -222,6 +265,7 @@ function! s:update_state(session, state) abort
         return
     endif
 
+    call s:update_goroutines_buffer(a:session, l:goroutines, l:current_goroutine_index)
     call s:follow_location_if_necessary(l:user_current_loc)
     call s:set_current_instruction_sign(a:session, l:user_current_loc)
 endfunction
@@ -243,6 +287,11 @@ endfunction
 function! s:update_stack_buffer(session, stack_trace, current_stack_frame) abort
     call s:set_buffer_contents(a:session, 'stack', s:jsonify_list(a:stack_trace))
     call s:set_current_stack_frame_sign(a:session, a:current_stack_frame)
+endfunction
+
+function! s:update_goroutines_buffer(session, goroutines, current_goroutine_index) abort
+    call s:set_buffer_contents(a:session, 'goroutines', a:goroutines)
+    call s:set_current_goroutine_sign(a:session, a:current_goroutine_index)
 endfunction
 
 function! s:follow_location_if_necessary(location) abort
@@ -303,6 +352,15 @@ function! s:set_current_stack_frame_sign(session, current_stack_frame) abort
     endif
 endfunction
 
+function! s:set_current_goroutine_sign(session, current_goroutine_index) abort
+    let l:arbitrary_id = 1 " we only have one current stack frame at a time, so we pick an arbitrary id
+    let l:line_number = a:current_goroutine_index + 1 " add 1 since lines are numbered from 1 and goroutines are numbered from 0
+    let l:place_result = sign_place(l:arbitrary_id, a:session.current_stack_frame_sign_group, 'DlvimCurrentGoroutine', a:session.buffers.goroutines.number, {'lnum': l:line_number})
+    if l:place_result == -1
+        call s:print_error('cannot set current goroutine sign at ' json_encode(a:location))
+    endif
+endfunction
+
 function! s:save_cursor_positions(subtab_name) abort
     let l:winnr = 0
     let l:window_cursor_positions = {}
@@ -351,6 +409,7 @@ let s:event_handlers = {
 let s:subtab_names = [
 \     'breakpoints',
 \     'stack',
+\     'goroutines',
 \     'objects',
 \     'console',
 \     'log',
