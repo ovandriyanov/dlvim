@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	dlvconfig "github.com/go-delve/delve/pkg/config"
 	commonrpc "github.com/ovandriyanov/dlvim/proxy/rpc"
 	"github.com/ovandriyanov/dlvim/proxy/upstream"
 	"github.com/ovandriyanov/dlvim/proxy/vimevent"
@@ -18,6 +19,7 @@ type Server struct {
 	mutex     sync.Mutex
 	inventory *inventory
 	debugRPC  bool
+	dlvConfig *dlvconfig.Config
 }
 
 func (s *Server) Stop() {
@@ -78,6 +80,8 @@ func (s *Server) Initialize(startOption upstream.StartOption) (inventory *invent
 	if err != nil {
 		return nil, err
 	}
+
+	s.dlvConfig = dlvconfig.LoadConfig()
 
 	return s.inventory, nil
 }

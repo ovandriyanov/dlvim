@@ -13,6 +13,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	dlvconfig "github.com/go-delve/delve/pkg/config"
 	dlvapi "github.com/go-delve/delve/service/api"
 	dlvrpc "github.com/go-delve/delve/service/rpc2"
 	"github.com/ovandriyanov/dlvim/proxy/rpc/dlv"
@@ -185,9 +186,15 @@ func (h *RPCHandler) CreateOrDeleteBreakpoint(req *CreateOrDeleteBreakpointIn, r
 		return xerrors.New("not initialized")
 	}
 
+	var pathSubstitutions [][2]string
+	if h.server.dlvConfig != nil {
+		pathSubstitutions = toPairs(h.server.dlvConfig.SubstitutePath)
+	}
+
 	findLocationRequest := dlvrpc.FindLocationIn{
-		Scope: dlvapi.EvalScope{GoroutineID: -1},
-		Loc:   fmt.Sprintf("%s:%d", req.File, req.Line),
+		Scope:               dlvapi.EvalScope{GoroutineID: -1},
+		Loc:                 fmt.Sprintf("%s:%d", req.File, req.Line),
+		SubstitutePathRules: pathSubstitutions,
 	}
 	var findLocationResponse dlvrpc.FindLocationOut
 	if err := upstreamClient.Call(dlv.FQMN("FindLocation"), &findLocationRequest, &findLocationResponse); err != nil {
@@ -227,6 +234,13 @@ func (h *RPCHandler) CreateOrDeleteBreakpoint(req *CreateOrDeleteBreakpointIn, r
 	}
 
 	return nil
+}
+
+func toPairs(rules dlvconfig.SubstitutePathRules) (pairs [][2]string) {
+	for _, rule := range rules {
+		pairs = append(pairs, [2]string{rule.From, rule.To})
+	}
+	return pairs
 }
 
 type StackFrame struct {
