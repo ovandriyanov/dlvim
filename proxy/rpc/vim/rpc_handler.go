@@ -82,7 +82,21 @@ func (h *RPCHandler) Initialize(req map[string]interface{}, resp *map[string]int
 	if err != nil {
 		return err
 	}
+
+	var setAPIVersionResult dlvapi.SetAPIVersionOut
+	if err := inventory.upstreamClient.Call(dlv.FQMN("SetApiVersion"), &dlvapi.SetAPIVersionIn{APIVersion: 2}, &setAPIVersionResult); err != nil {
+		inventory.Stop()
+		return xerrors.Errorf("cannot set API version: %w", err)
+	}
+
+	var stateResponse dlvrpc.StateOut
+	if err := inventory.upstreamClient.Call(dlv.FQMN("State"), &dlvrpc.StateIn{NonBlocking: false}, &stateResponse); err != nil {
+		inventory.Stop()
+		return xerrors.Errorf("cannot get state: %w", err)
+	}
+
 	(*resp)["proxy_listen_address"] = inventory.ProxyListenAddress().String()
+	(*resp)["state"] = stateResponse.State
 
 	return nil
 }

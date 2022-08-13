@@ -252,6 +252,8 @@ function! s:update_state(session, state) abort
         let l:goroutines = l:response.goroutines
         let l:current_goroutine_index = l:response.current_goroutine_index
     endif
+    call s:update_goroutines_buffer(a:session, l:goroutines, l:current_goroutine_index)
+
     call s:clear_current_instruction_sign(a:session)
     if a:state.exited
         echom 'Program exited with status ' .. a:state.exitStatus
@@ -265,7 +267,6 @@ function! s:update_state(session, state) abort
         return
     endif
 
-    call s:update_goroutines_buffer(a:session, l:goroutines, l:current_goroutine_index)
     call s:follow_location_if_necessary(l:user_current_loc)
     call s:set_current_instruction_sign(a:session, l:user_current_loc)
 endfunction
@@ -291,7 +292,9 @@ endfunction
 
 function! s:update_goroutines_buffer(session, goroutines, current_goroutine_index) abort
     call s:set_buffer_contents(a:session, 'goroutines', a:goroutines)
-    call s:set_current_goroutine_sign(a:session, a:current_goroutine_index)
+    if a:current_goroutine_index != -1
+        call s:set_current_goroutine_sign(a:session, a:current_goroutine_index)
+    endif
 endfunction
 
 function! s:follow_location_if_necessary(location) abort
@@ -575,7 +578,7 @@ function! s:create_proxy_job(session, dlv_argv, proxy_log_file) abort
     let l:proxy_listen_address = l:init_response.proxy_listen_address
 
     call ch_sendexpr(l:job, ['GetNextEvent', {}], {'callback': function(funcref(expand('<SID>') .. 'on_next_event'), [a:session])})
-    return [l:job, l:proxy_listen_address]
+    return [l:job, l:proxy_listen_address, l:init_response.state]
 endfunction
 
 function! s:on_next_event(session, channel, response) abort
@@ -611,7 +614,7 @@ function! s:create_session(dlv_argv) abort
     \   'current_stack_frame_sign_group':   '',
     \ }
 
-    let [l:proxy_job, l:proxy_listen_address] = s:create_proxy_job(l:session, a:dlv_argv, l:proxy_log_file)
+    let [l:proxy_job, l:proxy_listen_address, l:debugger_state] = s:create_proxy_job(l:session, a:dlv_argv, l:proxy_log_file)
 
     let l:session.breakpoint_sign_group = 'DlvimBreakpoints' .. l:session.id
     let l:session.current_instruction_sign_group = 'DlvimCurrentInstruction' .. l:session.id
@@ -620,6 +623,9 @@ function! s:create_session(dlv_argv) abort
     let l:session.proxy_listen_address = l:proxy_listen_address
     let l:session.buffers = s:create_buffers(l:session)
 
+    if type(l:debugger_state) != type(v:null)
+        call s:update_state(l:session, l:debugger_state)
+    endif
     return l:session
 endfunction
 
