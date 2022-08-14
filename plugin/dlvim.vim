@@ -192,10 +192,7 @@ function! s:on_run_command_response(session, command_description, channel, respo
         return
     endif
 
-    if type(a:response.stack_trace) != type(v:null)
-        call s:update_stack_buffer(a:session, a:response.stack_trace, 0)
-    endif
-    call s:update_state(a:session, a:response.state)
+    call s:update_state(a:session, a:response.state, a:response.stack_trace)
 endfunction
 
 function! s:print_error(message) abort
@@ -213,7 +210,7 @@ function! s:on_command_issued(session, event_payload) abort
 endfunction
 
 function! s:on_state_updated(session, event_payload) abort
-    call s:update_state(a:session, a:event_payload.state)
+    call s:update_state(a:session, a:event_payload.state, a:event_payload.stack_trace)
 endfunction
 
 function! s:update_breakpoints(session) abort
@@ -235,7 +232,10 @@ function! s:jsonify_list(breakpoints_list) abort
     return result
 endfunction
 
-function! s:update_state(session, state) abort
+function! s:update_state(session, state, stack_trace) abort
+    if type(a:stack_trace) != type(v:null)
+        call s:update_stack_buffer(a:session, a:stack_trace, 0)
+    endif
     let l:current_goroutine = get(a:state, 'currentGoroutine', v:null)
     if type(l:current_goroutine) == type(v:null)
         let l:current_goroutine_id = -1
@@ -624,7 +624,7 @@ function! s:create_session(dlv_argv) abort
     let l:session.buffers = s:create_buffers(l:session)
 
     if type(l:debugger_state) != type(v:null)
-        call s:update_state(l:session, l:debugger_state)
+        call s:update_state(l:session, l:debugger_state, v:null)
     endif
     return l:session
 endfunction

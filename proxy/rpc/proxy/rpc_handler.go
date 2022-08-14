@@ -8,6 +8,7 @@ import (
 	"reflect"
 
 	dlvrpc "github.com/go-delve/delve/service/rpc2"
+	dlvimrpc "github.com/ovandriyanov/dlvim/proxy/rpc"
 	"github.com/ovandriyanov/dlvim/proxy/rpc/dlv"
 	"github.com/ovandriyanov/dlvim/proxy/vimevent"
 )
@@ -92,8 +93,17 @@ func (h *RPCHandler) Command(req map[string]interface{}, resp *dlvrpc.CommandOut
 		return err
 	}
 
+	var stackTraceResponse dlvrpc.StacktraceOut
+	err = h.dlvClient.Call(dlv.FQMN("Stacktrace"), dlvrpc.StacktraceIn{Id: -1, Depth: 50}, &stackTraceResponse)
+	if err != nil {
+		log.Printf("WARNING: cannot get current stack trace: %s\n", err.Error())
+	}
+
 	select {
-	case h.events <- &vimevent.StateUpdated{State: &resp.State}:
+	case h.events <- &vimevent.StateUpdated{
+		State:      &resp.State,
+		StackTrace: dlvimrpc.NewStackTrace(stackTraceResponse.Locations),
+	}:
 	case <-h.ctx.Done():
 	}
 	return nil

@@ -2,6 +2,7 @@ package vimevent
 
 import (
 	dlvapi "github.com/go-delve/delve/service/api"
+	"github.com/ovandriyanov/dlvim/proxy/rpc"
 )
 
 type Event interface {
@@ -11,7 +12,8 @@ type Event interface {
 type BreakpointsUpdated struct{}
 type CommandIssued struct{}
 type StateUpdated struct {
-	State *dlvapi.DebuggerState `json:"state"`
+	State      *dlvapi.DebuggerState `json:"state"`
+	StackTrace []rpc.StackFrame      `json:"stack_trace"`
 }
 
 func (*BreakpointsUpdated) Kind() string { return "BREAKPOINTS_UPDATED" }

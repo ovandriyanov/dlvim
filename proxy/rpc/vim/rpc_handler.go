@@ -16,6 +16,7 @@ import (
 	dlvconfig "github.com/go-delve/delve/pkg/config"
 	dlvapi "github.com/go-delve/delve/service/api"
 	dlvrpc "github.com/go-delve/delve/service/rpc2"
+	"github.com/ovandriyanov/dlvim/proxy/rpc"
 	"github.com/ovandriyanov/dlvim/proxy/rpc/dlv"
 	"github.com/ovandriyanov/dlvim/proxy/upstream"
 	"github.com/ovandriyanov/dlvim/proxy/vimevent"
@@ -243,14 +244,9 @@ func toPairs(rules dlvconfig.SubstitutePathRules) (pairs [][2]string) {
 	return pairs
 }
 
-type StackFrame struct {
-	File string `json:"file"`
-	Line int    `json:"line"`
-}
-
 type CommandOut struct {
 	State      *dlvapi.DebuggerState `json:"state"`
-	StackTrace []StackFrame          `json:"stack_trace"`
+	StackTrace []rpc.StackFrame      `json:"stack_trace"`
 }
 
 type ContinueIn struct{}
@@ -283,9 +279,7 @@ func (h *RPCHandler) command(command string, response *CommandOut, goroutineID i
 		log.Printf("ERROR: cannot get stack trace: %s\n", err)
 		return nil
 	}
-	for _, location := range stackTraceResponse.Locations {
-		response.StackTrace = append(response.StackTrace, StackFrame{File: location.File, Line: location.Line})
-	}
+	response.StackTrace = rpc.NewStackTrace(stackTraceResponse.Locations)
 	h.server.inventory.stack.SetStackTrace(response.StackTrace)
 	return nil
 }
@@ -316,8 +310,8 @@ func (h *RPCHandler) Stepout(req *StepoutIn, resp *StepoutOut) error {
 }
 
 type StackFrameOut struct {
-	StackTrace   []StackFrame `json:"stack_trace"`
-	CurrentFrame int          `json:"current_stack_frame"`
+	StackTrace   []rpc.StackFrame `json:"stack_trace"`
+	CurrentFrame int              `json:"current_stack_frame"`
 }
 
 type UpIn struct{}

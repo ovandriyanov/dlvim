@@ -1,11 +1,12 @@
 package vim
 
 import (
+	"github.com/ovandriyanov/dlvim/proxy/rpc"
 	"golang.org/x/xerrors"
 )
 
 type Stack struct {
-	stackTrace   []StackFrame
+	stackTrace   []rpc.StackFrame
 	currentFrame int
 }
 
@@ -13,7 +14,7 @@ func (s *Stack) IsTopmostFrame() bool {
 	return s.currentFrame == 0
 }
 
-func (s *Stack) SetStackTrace(stackTrace []StackFrame) {
+func (s *Stack) SetStackTrace(stackTrace []rpc.StackFrame) {
 	s.stackTrace = stackTrace
 	s.currentFrame = 0
 }
@@ -44,7 +45,7 @@ func (s *Stack) SwitchFrame(frame int) error {
 	return nil
 }
 
-func (s *Stack) Trace() []StackFrame {
+func (s *Stack) Trace() []rpc.StackFrame {
 	return s.stackTrace
 }
 
