@@ -133,6 +133,7 @@ function s:run_command(command_name, command_description, args) abort
 
     call s:clear_current_instruction_sign(l:session)
     call s:clear_stack_buffer(l:session)
+    call s:clear_goroutines_buffer(l:session)
     let l:options = {'callback': function(funcref(expand('<SID>') .. 'on_run_command_response'), [l:session, a:command_description])}
     call ch_sendexpr(l:session.proxy_job, [a:command_name, a:args], l:options)
 endfunction
@@ -235,7 +236,10 @@ endfunction
 function! s:update_state(session, state, stack_trace) abort
     if type(a:stack_trace) != type(v:null)
         call s:update_stack_buffer(a:session, a:stack_trace, 0)
+    else
+        call s:clear_stack_buffer(a:session)
     endif
+
     let l:current_goroutine = get(a:state, 'currentGoroutine', v:null)
     if type(l:current_goroutine) == type(v:null)
         let l:current_goroutine_id = -1
@@ -252,7 +256,12 @@ function! s:update_state(session, state, stack_trace) abort
         let l:goroutines = l:response.goroutines
         let l:current_goroutine_index = l:response.current_goroutine_index
     endif
-    call s:update_goroutines_buffer(a:session, l:goroutines, l:current_goroutine_index)
+
+    if l:current_goroutine_id != -1
+        call s:update_goroutines_buffer(a:session, l:goroutines, l:current_goroutine_index)
+    else
+        call s:clear_goroutines_buffer(a:session)
+    endif
 
     call s:clear_current_instruction_sign(a:session)
     if a:state.exited
@@ -275,6 +284,10 @@ function! s:clear_current_instruction_sign(session) abort
     call sign_unplace(a:session.current_instruction_sign_group)
 endfunction
 
+function! s:clear_current_goroutine_sign(session) abort
+    call sign_unplace(a:session.current_goroutine_sign_group)
+endfunction
+
 function! s:clear_current_stack_frame_sign(session) abort
     call sign_unplace(a:session.current_stack_frame_sign_group)
 endfunction
@@ -288,6 +301,12 @@ endfunction
 function! s:update_stack_buffer(session, stack_trace, current_stack_frame) abort
     call s:set_buffer_contents(a:session, 'stack', s:jsonify_list(a:stack_trace))
     call s:set_current_stack_frame_sign(a:session, a:current_stack_frame)
+endfunction
+
+function! s:clear_goroutines_buffer(session) abort
+    let l:goroutines_buffer = a:session.buffers.goroutines.number
+    call deletebufline(l:goroutines_buffer, 1, '$')
+    call s:clear_current_goroutine_sign(a:session)
 endfunction
 
 function! s:update_goroutines_buffer(session, goroutines, current_goroutine_index) abort
@@ -358,7 +377,7 @@ endfunction
 function! s:set_current_goroutine_sign(session, current_goroutine_index) abort
     let l:arbitrary_id = 1 " we only have one current stack frame at a time, so we pick an arbitrary id
     let l:line_number = a:current_goroutine_index + 1 " add 1 since lines are numbered from 1 and goroutines are numbered from 0
-    let l:place_result = sign_place(l:arbitrary_id, a:session.current_stack_frame_sign_group, 'DlvimCurrentGoroutine', a:session.buffers.goroutines.number, {'lnum': l:line_number})
+    let l:place_result = sign_place(l:arbitrary_id, a:session.current_goroutine_sign_group, 'DlvimCurrentGoroutine', a:session.buffers.goroutines.number, {'lnum': l:line_number})
     if l:place_result == -1
         call s:print_error('cannot set current goroutine sign at ' json_encode(a:location))
     endif
@@ -612,6 +631,7 @@ function! s:create_session(dlv_argv) abort
     \   'breakpoint_sign_group':            '',
     \   'current_instruction_sign_group':   '',
     \   'current_stack_frame_sign_group':   '',
+    \   'current_goroutine_sign_group':     '',
     \ }
 
     let [l:proxy_job, l:proxy_listen_address, l:debugger_state] = s:create_proxy_job(l:session, a:dlv_argv, l:proxy_log_file)
@@ -619,6 +639,7 @@ function! s:create_session(dlv_argv) abort
     let l:session.breakpoint_sign_group = 'DlvimBreakpoints' .. l:session.id
     let l:session.current_instruction_sign_group = 'DlvimCurrentInstruction' .. l:session.id
     let l:session.current_stack_frame_sign_group = 'DlvimCurrentStackFrame' .. l:session.id
+    let l:session.current_goroutine_sign_group = 'DlvimCurrentGoroutine' .. l:session.id
     let l:session.proxy_job = l:proxy_job
     let l:session.proxy_listen_address = l:proxy_listen_address
     let l:session.buffers = s:create_buffers(l:session)
