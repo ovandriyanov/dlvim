@@ -257,11 +257,7 @@ function! s:update_state(session, state, stack_trace) abort
         let l:current_goroutine_index = l:response.current_goroutine_index
     endif
 
-    if l:current_goroutine_id != -1
-        call s:update_goroutines_buffer(a:session, l:goroutines, l:current_goroutine_index)
-    else
-        call s:clear_goroutines_buffer(a:session)
-    endif
+    call s:update_goroutines_buffer(a:session, l:goroutines, l:current_goroutine_index)
 
     call s:clear_current_instruction_sign(a:session)
     if a:state.exited
