@@ -400,6 +400,13 @@ func parseEvaluateExprRequest(request *EvaluateIn) (string, error) {
 	return request.Line[begin:end], nil
 }
 
+func coalesce[T interface{}](value *T, defaultValue T) T {
+	if value != nil {
+		return *value
+	}
+	return defaultValue
+}
+
 func (h *RPCHandler) Evaluate(req *EvaluateIn, resp *EvaluateOut) error {
 	var expr string
 	if req.Expression != "" {
@@ -413,6 +420,7 @@ func (h *RPCHandler) Evaluate(req *EvaluateIn, resp *EvaluateOut) error {
 	}
 
 	var upstreamResp dlvrpc.EvalOut
+
 	err := h.server.inventory.upstreamClient.Call(
 		dlv.FQMN("Eval"),
 		dlvrpc.EvalIn{
@@ -424,9 +432,9 @@ func (h *RPCHandler) Evaluate(req *EvaluateIn, resp *EvaluateOut) error {
 			Expr: expr,
 			Cfg: &dlvapi.LoadConfig{
 				FollowPointers:     true,
-				MaxVariableRecurse: 1,
-				MaxStringLen:       10_000,
-				MaxArrayValues:     100,
+				MaxVariableRecurse: coalesce(h.server.dlvConfig.MaxVariableRecurse, 1),
+				MaxStringLen:       coalesce(h.server.dlvConfig.MaxStringLen, 10_000),
+				MaxArrayValues:     coalesce(h.server.dlvConfig.MaxArrayValues, 100),
 				MaxStructFields:    -1,
 			},
 		},
