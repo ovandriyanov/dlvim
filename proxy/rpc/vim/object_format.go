@@ -22,6 +22,9 @@ type goStruct struct {
 
 // Converts a variable to an object ready to be marshaled into a JSON
 func toValue(variable *dlvapi.Variable) (object interface{}) {
+	if variable.Type != "" && variable.Addr == 0 {
+		return nil
+	}
 	switch variable.Kind {
 	case reflect.Invalid:
 		return nil
