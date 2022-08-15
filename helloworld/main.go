@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	"golang.org/x/xerrors"
 )
 
 type kek struct {
@@ -16,6 +18,8 @@ func main() {
 		i: 1,
 		s: "xyz",
 	}
+	err := xerrors.Errorf("kek")
+	fmt.Println(err)
 	fmt.Println("Hello, world!")
 	fmt.Println(k)
 	done := make(chan struct{})
