@@ -10,20 +10,22 @@ import (
 	"sync"
 
 	"github.com/ovandriyanov/dlvim/proxy/common"
+	commonrpc "github.com/ovandriyanov/dlvim/proxy/rpc"
 	"github.com/ovandriyanov/dlvim/proxy/rpc/dlv"
 	"github.com/ovandriyanov/dlvim/proxy/vimevent"
 	"golang.org/x/xerrors"
 )
 
 type Server struct {
-	dlvAddress  string
-	listener    net.Listener
-	acceptErrCh chan error
-	ctx         context.Context
-	cancelCtx   func()
-	clientsWg   sync.WaitGroup
-	events      chan<- vimevent.Event
-	debugRPC    bool
+	dlvAddress       string
+	listener         net.Listener
+	acceptErrCh      chan error
+	ctx              context.Context
+	cancelCtx        func()
+	clientsWg        sync.WaitGroup
+	events           chan<- vimevent.Event
+	debugRPC         bool
+	handleStackTrace func([]commonrpc.StackFrame)
 }
 
 func (s *Server) Stop() {
@@ -76,7 +78,7 @@ func (s *Server) handleClient(ctx context.Context, clientConn io.ReadWriteCloser
 
 	dlvClient := jsonrpc.NewClient(dlvConn)
 	srv := rpc.NewServer()
-	handler := NewRPCHandler(dlvClient, s.events, ctx)
+	handler := NewRPCHandler(dlvClient, s.events, ctx, s.handleStackTrace)
 	var receiver interface{} = handler
 	if s.debugRPC {
 		receiver = NewLoggingRPCHandler(handler, "proxy server")
@@ -97,7 +99,7 @@ func (s *Server) handleClient(ctx context.Context, clientConn io.ReadWriteCloser
 	}
 }
 
-func NewServer(dlvAddress string, events chan<- vimevent.Event, debugRPC bool) (*Server, error) {
+func NewServer(dlvAddress string, events chan<- vimevent.Event, handleStackTrace func([]commonrpc.StackFrame), debugRPC bool) (*Server, error) {
 	listener, err := net.Listen("tcp", "localhost:")
 	if err != nil {
 		return nil, xerrors.Errorf("listen: %w", err)
@@ -106,14 +108,15 @@ func NewServer(dlvAddress string, events chan<- vimevent.Event, debugRPC bool) (
 	ctx, cancel := context.WithCancel(context.Background())
 
 	server := &Server{
-		dlvAddress:  dlvAddress,
-		listener:    listener,
-		acceptErrCh: make(chan error),
-		ctx:         ctx,
-		cancelCtx:   cancel,
-		clientsWg:   sync.WaitGroup{},
-		events:      events,
-		debugRPC:    debugRPC,
+		dlvAddress:       dlvAddress,
+		listener:         listener,
+		acceptErrCh:      make(chan error),
+		ctx:              ctx,
+		cancelCtx:        cancel,
+		clientsWg:        sync.WaitGroup{},
+		events:           events,
+		debugRPC:         debugRPC,
+		handleStackTrace: handleStackTrace,
 	}
 	go server.acceptClients()
 

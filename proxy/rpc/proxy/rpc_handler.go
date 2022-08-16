@@ -8,6 +8,7 @@ import (
 	"reflect"
 
 	dlvrpc "github.com/go-delve/delve/service/rpc2"
+	commonrpc "github.com/ovandriyanov/dlvim/proxy/rpc"
 	dlvimrpc "github.com/ovandriyanov/dlvim/proxy/rpc"
 	"github.com/ovandriyanov/dlvim/proxy/rpc/dlv"
 	"github.com/ovandriyanov/dlvim/proxy/vimevent"
@@ -28,9 +29,10 @@ func init() {
 }
 
 type RPCHandler struct {
-	ctx       context.Context
-	dlvClient *rpc.Client
-	events    chan<- vimevent.Event
+	ctx              context.Context
+	dlvClient        *rpc.Client
+	events           chan<- vimevent.Event
+	handleStackTrace func([]commonrpc.StackFrame)
 }
 
 func (h *RPCHandler) defaultHandler(method string, req interface{}, resp interface{}) error {
@@ -74,11 +76,12 @@ func (h *RPCHandler) ClearBreakpoint(req map[string]interface{}, resp *map[strin
 
 }
 
-func NewRPCHandler(dlvClient *rpc.Client, events chan<- vimevent.Event, ctx context.Context) *RPCHandler {
+func NewRPCHandler(dlvClient *rpc.Client, events chan<- vimevent.Event, ctx context.Context, handleStackTrace func([]commonrpc.StackFrame)) *RPCHandler {
 	return &RPCHandler{
-		dlvClient: dlvClient,
-		events:    events,
-		ctx:       ctx,
+		dlvClient:        dlvClient,
+		events:           events,
+		ctx:              ctx,
+		handleStackTrace: handleStackTrace,
 	}
 }
 
@@ -98,6 +101,7 @@ func (h *RPCHandler) Command(req map[string]interface{}, resp *dlvrpc.CommandOut
 	if err != nil {
 		log.Printf("WARNING: cannot get current stack trace: %s\n", err.Error())
 	}
+	h.handleStackTrace(commonrpc.NewStackTrace(stackTraceResponse.Locations))
 
 	select {
 	case h.events <- &vimevent.StateUpdated{

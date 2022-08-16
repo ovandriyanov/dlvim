@@ -58,7 +58,8 @@ func NewInventory(ctx context.Context, upstreamStartOption upstream.StartOption,
 		return nil, xerrors.Errorf("cannot dial upstream at %s: %w", listenAddress, err)
 	}
 
-	proxyServer, err := proxy.NewServer(listenAddress, events, debugRPC)
+	stack := NewStack()
+	proxyServer, err := proxy.NewServer(listenAddress, events, stack.SetStackTrace, debugRPC)
 	if err != nil {
 		_ = upstreamConnection.Close()
 		stopUpstream()
@@ -69,8 +70,6 @@ func NewInventory(ctx context.Context, upstreamStartOption upstream.StartOption,
 	if debugRPC {
 		upstreamClient = commonrpc.NewLoggingClient("dlv", upstreamClient)
 	}
-
-	stack := NewStack()
 
 	return &inventory{
 		upstreamProcess: upstreamProcess,
