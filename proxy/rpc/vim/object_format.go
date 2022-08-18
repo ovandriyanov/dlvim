@@ -40,6 +40,14 @@ func toValue(variable *dlvapi.Variable) (object interface{}) {
 			list = append(list, toValue(&child))
 		}
 		object = list
+	case reflect.Map:
+		dict := make(map[string]interface{})
+		for i := 0; i+1 < len(variable.Children); i += 2 {
+			key := variable.Children[i].Value
+			value := toValue(&variable.Children[i+1])
+			dict[key] = value
+		}
+		object = dict
 	default:
 		if len(variable.Children) == 0 {
 			return variable.Value
