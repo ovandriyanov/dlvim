@@ -19,9 +19,13 @@ type Debug struct {
 
 func (d *Debug) isStartOption() {}
 
-func (d *Debug) Argv() []string {
+func (d *Debug) Argv(listenAddress string) []string {
 	return []string{
 		"debug",
 		d.PackagePath,
+		"--listen",
+		listenAddress,
+		"--headless",
+		"--accept-multiclient",
 	}
 }

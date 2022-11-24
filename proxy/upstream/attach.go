@@ -25,6 +25,13 @@ type Attach struct {
 
 func (a *Attach) isStartOption() {}
 
-func (d *Attach) Argv() []string {
-	return []string{"attach", strconv.Itoa(d.Pid)}
+func (d *Attach) Argv(listenAddress string) []string {
+	return []string{
+		"attach",
+		strconv.Itoa(d.Pid),
+		"--listen",
+		listenAddress,
+		"--headless",
+		"--accept-multiclient",
+	}
 }

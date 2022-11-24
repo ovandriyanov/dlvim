@@ -20,6 +20,17 @@ type Exec struct {
 
 func (d *Exec) isStartOption() {}
 
-func (d *Exec) Argv() []string {
-	return append([]string{"exec", d.ExecutablePath}, d.CmdLineArgs...)
+func (d *Exec) Argv(listenAddress string) []string {
+	return append(
+		[]string{
+			"exec",
+			d.ExecutablePath,
+			"--listen",
+			listenAddress,
+			"--headless",
+			"--accept-multiclient",
+			"--",
+		},
+		d.CmdLineArgs...,
+	)
 }

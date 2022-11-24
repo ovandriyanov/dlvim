@@ -14,7 +14,7 @@ type (
 	// Run the dlv as a separate process
 	StartDlvProcess interface {
 		isStartOption()
-		Argv() []string
+		Argv(listenAddress string) []string
 	}
 
 	StartOptionParser func(argv []string) (StartOption, error)
