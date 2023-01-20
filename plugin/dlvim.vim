@@ -586,7 +586,7 @@ function! s:create_proxy_job(session, dlv_argv, proxy_log_file) abort
 
     let l:job = job_start([s:proxy_path] + l:job_args, l:job_options)
 
-    let l:init_response = ch_evalexpr(l:job, ['Initialize', {'dlv_argv': a:dlv_argv}])
+    let l:init_response = ch_evalexpr(l:job, ['Initialize', {'dlv_argv': a:dlv_argv}], {'timeout': 15000})
     if has_key(l:init_response, 'Error')
         throw printf('proxy initialization failed: %s', l:init_response.Error)
     endif
